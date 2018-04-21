@@ -91,7 +91,19 @@
 #%  label: Plots to generate
 #%  options: LongProfile,SlopeAccum,SlopeDistance,AccumDistance
 #%  required: no
-#%  multiple : yes
+#%  multiple: yes
+#%end
+#%option
+#%  key: outfile_original
+#%  type: string
+#%  label: output file for data on original grid
+#%  required: no
+#%end
+#%option
+#%  key: outfile_smoothed
+#%  type: string
+#%  label: output file for data on smoothed grid
+#%  required: no
 #%end
 
 ##################
@@ -219,32 +231,46 @@ def main():
     
     # Analysis
     if options['elevation']:
+        _include_z = True
         DEM = RasterRow('DEM')
         DEM.open('r')
         z = []
         for row in coords:
             z.append(DEM.get_value(Point(row[0], row[1])))
         DEM.close()
+        z = np.array(z)
         if options['window'] is not '':
             x_downstream, z = moving_average(x_downstream_0, z, window)
+    else:
+        _include_z = False
     if options['slope']:
+        _include_S = True
         slope = RasterRow('slope')
         slope.open('r')
         S = []
         for row in coords:
             S.append(slope.get_value(Point(row[0], row[1])))
         slope.close()
+        S = np.array(S)
+        S_0 = S.copy()
         if options['window'] is not '':
             x_downstream, S = moving_average(x_downstream_0, S, window)
+    else:
+        _include_S = False
     if options['accumulation']:
+        _include_A = True
         accumulation = RasterRow('accumulation')
         accumulation.open('r')
         A = []
         for row in coords:
             A.append(accumulation.get_value(Point(row[0], row[1])) * accum_mult)
         accumulation.close()
+        A = np.array(A)
+        A_0 = A.copy()
         if options['window'] is not '':
             x_downstream, A = moving_average(x_downstream_0, A, window)
+    else:
+        _include_A = False
 
     # Plotting
     if 'LongProfile' in plots:
@@ -271,8 +297,42 @@ def main():
         plt.xlabel('Distance downstream [km]', fontsize=16)
         plt.ylabel(accum_label, fontsize=20)
         plt.tight_layout()
-
     plt.show()
+    
+    # Saving data
+    header = ['x_downstream', 'E', 'N']
+    if options['outfile_original'] is not '':
+        outfile = np.hstack((np.expand_dims(x_downstream_0, axis=1), coords))
+        if _include_S:
+            header.append('slope')
+            outfile = np.hstack((outfile, np.expand_dims(S_0, axis=1)))
+        if _include_A:
+            if (options['units'] == 'm2') or (options['units'] == 'km2'):
+                header.append('drainage_area_'+options['units'])
+            elif (options['units'] == 'cumecs') or (options['units'] == 'cfs'):
+                header.append('water_discharge_'+options['units'])
+            else:
+                header.append('flow_accumulation_arbitrary_units')
+            outfile = np.hstack((outfile, np.expand_dims(A_0, axis=1)))
+        header = np.array(header)
+        outfile = np.vstack((header, outfile))
+        np.savetxt(options['outfile_original'], outfile, '%s')
+    header = ['x_downstream']
+    if options['outfile_smoothed'] is not '':
+        print x_downstream.shape
+        print coords.transpose().shape
+        outfile = np.hstack((x_downstream))#, coords.transpose()))
+        if _include_S:
+            header.append(', slope')
+            outfile = np.vstack((outfile, S))
+        if _include_A:
+            if (options['units'] == 'm2') or (options['units'] == 'km2'):
+                header.append(', drainage_area_'+options['units'])
+            elif (options['units'] == 'cumecs') or (options['units'] == 'cfs'):
+                header.append(', water_discharge_'+options['units'])
+            else:
+                header.append(', flow_accumulation_arbitrary_units')
+            outfile = np.vstack((outfile, A))
         
 if __name__ == "__main__":
     main()
