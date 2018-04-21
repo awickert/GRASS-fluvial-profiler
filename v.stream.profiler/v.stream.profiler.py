@@ -133,13 +133,14 @@ from grass.pygrass.vector.geometry import Point
 def moving_average(x, y, window):
     """
     Create a moving average every <window/2> points with an averaging
-    distance of <window>, but including the first and last point
+    distance of <window>, but including the the first point + window/2
+    and the last point - window/2
     (so distance to last point could be irregular)
     """
     x = np.array(x)
     y = np.array(y)
-    out_x = np.arange(x[0], x[-1], window)
-    out_x = np.hstack((out_x, x[-1]))
+    out_x = np.arange(x[0]+window/2., x[-1]-window/2., window)
+    out_x = np.hstack((out_x, x[-1]-window/2.))
     out_y = []
     for _x in out_x:
         out_y.append( np.mean(y[ (x < _x + window/2.) * 
@@ -300,8 +301,8 @@ def main():
     plt.show()
     
     # Saving data
-    header = ['x_downstream', 'E', 'N']
     if options['outfile_original'] is not '':
+        header = ['x_downstream', 'E', 'N']
         outfile = np.hstack((np.expand_dims(x_downstream_0, axis=1), coords))
         if _include_S:
             header.append('slope')
@@ -317,22 +318,29 @@ def main():
         header = np.array(header)
         outfile = np.vstack((header, outfile))
         np.savetxt(options['outfile_original'], outfile, '%s')
-    header = ['x_downstream']
     if options['outfile_smoothed'] is not '':
-        print x_downstream.shape
-        print coords.transpose().shape
-        outfile = np.hstack((x_downstream))#, coords.transpose()))
+        header = ['x_downstream', 'E', 'N']
+        # E, N on smoothed grid
+        x_downstream, E = moving_average(x_downstream_0, coords[:,0], window)
+        x_downstream, N = moving_average(x_downstream_0, coords[:,1], window)
+        # Back to output
+        outfile = np.hstack((np.expand_dims(x_downstream, axis=1),
+                             np.expand_dims(E, axis=1),
+                             np.expand_dims(N, axis=1)))
         if _include_S:
-            header.append(', slope')
-            outfile = np.vstack((outfile, S))
+            header.append('slope')
+            outfile = np.hstack((outfile, np.expand_dims(S, axis=1)))
         if _include_A:
             if (options['units'] == 'm2') or (options['units'] == 'km2'):
-                header.append(', drainage_area_'+options['units'])
+                header.append('drainage_area_'+options['units'])
             elif (options['units'] == 'cumecs') or (options['units'] == 'cfs'):
-                header.append(', water_discharge_'+options['units'])
+                header.append('water_discharge_'+options['units'])
             else:
-                header.append(', flow_accumulation_arbitrary_units')
-            outfile = np.vstack((outfile, A))
+                header.append('flow_accumulation_arbitrary_units')
+            outfile = np.hstack((outfile, np.expand_dims(A, axis=1)))
+        header = np.array(header)
+        outfile = np.vstack((header, outfile))
+        np.savetxt(options['outfile_smoothed'], outfile, '%s')
         
 if __name__ == "__main__":
     main()
