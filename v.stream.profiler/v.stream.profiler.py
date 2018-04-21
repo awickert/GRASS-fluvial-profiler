@@ -41,7 +41,7 @@
 #%option G_OPT_V_OUTPUT
 #%  key: outstream
 #%  label: Vector output stream
-#%  required: yes
+#%  required: no
 #%end
 #%option
 #%  key: direction
@@ -58,17 +58,12 @@
 #%end
 #%option G_OPT_R_INPUT
 #%  key: accumulation
-#%  label: Flow accumulation
+#%  label: Flow accumulation raster
 #%  required: no
 #%end
 #%option G_OPT_R_INPUT
 #%  key: slope
 #%  label: Map of slope created by r.slope.area
-#%  required: no
-#%end
-#%option G_OPT_R_INPUT
-#%  key: window
-#%  label: Distance over which to average in river profiles and slope-area plots
 #%  required: no
 #%end
 #%option
@@ -79,11 +74,24 @@
 #%  required: no
 #%end
 #%option
+#%  key: accum_mult
+#%  type: double
+#%  label: Multiplier to convert flow accumulation to your chosen unit
+#%  answer: 1
+#%  required: no
+#%end
+#%option G_OPT_R_INPUT
+#%  key: window
+#%  label: Averaging distance [map units]
+#%  required: no
+#%end
+#%option
 #%  key: plots
 #%  type: string
 #%  label: Plots to generate
-#%  options: LongProfile,SlopeArea,SlopeDistance,AreaDistance
+#%  options: LongProfile,SlopeAccum,SlopeDistance,AccumDistance
 #%  required: no
+#%  multiple : yes
 #%end
 
 ##################
@@ -104,6 +112,27 @@ from grass.pygrass.vector import Vector, VectorTopo
 from grass.pygrass.raster import RasterRow
 from grass.pygrass import utils
 from grass import script as gscript
+from grass.pygrass.vector.geometry import Point
+
+###################
+# UTILITY MODULES #
+###################
+
+def moving_average(x, y, window):
+    """
+    Create a moving average every <window/2> points with an averaging
+    distance of <window>, but including the first and last point
+    (so distance to last point could be irregular)
+    """
+    x = np.array(x)
+    y = np.array(y)
+    out_x = np.arange(x[0], x[-1], window)
+    out_x = np.hstack((out_x, x[-1]))
+    out_y = []
+    for _x in out_x:
+        out_y.append( np.mean(y[ (x < _x + window/2.) * 
+                                 (x > _x - window/2.) ]))
+    return out_x, out_y
 
 ###############
 # MAIN MODULE #
@@ -118,9 +147,21 @@ def main():
 
     options, flags = gscript.parser()
     
-    print options
-    print flags
-
+    # Parsing
+    window = float(options['window'])
+    accum_mult = float(options['accum_mult'])
+    if options['units'] == 'm2':
+        accum_label = 'Drainage area [m$^2$]'
+    elif options['units'] == 'km2':
+        accum_label = 'Drainage area [km$^2$]'
+    elif options['units'] == 'cumecs':
+        accum_label = 'Water discharge [m$^3$ s$^{-1}$]'
+    elif options['units'] == 'cfs':
+        accum_label = 'Water discharge [cfs]'
+    else:
+        accum_label = 'Flow accumulation [$-$]'
+    plots = options['plots'].split(',')
+    
     # Attributes of streams
     colNames = np.array(vector_db_select(options['streams'])['columns'])
     colValues = np.array(vector_db_select(options['streams'])['values'].values())
@@ -131,12 +172,37 @@ def main():
     selected_cats = []
     segment = int(options['cat'])
     selected_cats.append(segment)
+    x = []
+    z = []
     if options['direction'] == 'downstream':
+        # Get network
         while selected_cats[-1] != 0:
             selected_cats.append(int(tostream[cats == selected_cats[-1]]))
+        x.append(selected_cats[-1])
         selected_cats = selected_cats[:-1] # remove 0 at end
+        
+        # Extract x points in network
+        data = vector.VectorTopo(options['streams']) # Create a VectorTopo object
+        data.open('r') # Open this object for reading
+        
+        coords = []
+        for i in range(len(data)):
+            if type(data.read(i+1)) is vector.geometry.Line:
+                if data.read(i+1).cat in selected_cats:
+                    coords.append(data.read(i+1).to_array())
+        coords = np.vstack(np.array(coords))
+        
+        _dx = np.diff(coords[:,0])
+        _dy = np.diff(coords[:,1])
+        x_downstream_0 = np.hstack((0, np.cumsum((_dx**2 + _dy**2)**.5)))
+        x_downstream = x_downstream_0.copy()
+        
     elif options['direction'] == 'upstream':
-        print "Not yet active!"
+        #terminalCATS = list(options['cat'])
+        #while terminalCATS:
+            #
+        print "Upstream direction not yet active!"
+        return
         """
         # Add new lists for each successive upstream river
         river_is_upstream =
@@ -144,11 +210,70 @@ def main():
         full_river_cats
         """
     
-    selected_cats_str = list(np.array(selected_cats).astype(str))
-    selected_cats_csv = ','.join(selected_cats_str)
+    # Network extraction
+    if options['outstream'] is not '':
+        selected_cats_str = list(np.array(selected_cats).astype(str))
+        selected_cats_csv = ','.join(selected_cats_str)
+        v.extract( input=options['streams'], output=options['outstream'], \
+                   cats=selected_cats_csv, overwrite=gscript.overwrite() )
+    
+    # Analysis
+    if options['elevation']:
+        DEM = RasterRow('DEM')
+        DEM.open('r')
+        z = []
+        for row in coords:
+            z.append(DEM.get_value(Point(row[0], row[1])))
+        DEM.close()
+        if options['window'] is not '':
+            x_downstream, z = moving_average(x_downstream_0, z, window)
+    if options['slope']:
+        slope = RasterRow('slope')
+        slope.open('r')
+        S = []
+        for row in coords:
+            S.append(slope.get_value(Point(row[0], row[1])))
+        slope.close()
+        if options['window'] is not '':
+            x_downstream, S = moving_average(x_downstream_0, S, window)
+    if options['accumulation']:
+        accumulation = RasterRow('accumulation')
+        accumulation.open('r')
+        A = []
+        for row in coords:
+            A.append(accumulation.get_value(Point(row[0], row[1])) * accum_mult)
+        accumulation.close()
+        if options['window'] is not '':
+            x_downstream, A = moving_average(x_downstream_0, A, window)
 
-    v.extract(input=options['streams'], output=options['outstream'], cats=selected_cats_csv, overwrite=True)
+    # Plotting
+    if 'LongProfile' in plots:
+        plt.figure()
+        plt.plot(x_downstream/1000., z, 'k-', linewidth=2)
+        plt.xlabel('Distance downstream [km]', fontsize=16)
+        plt.ylabel('Elevation [m]', fontsize=20)
+        plt.tight_layout()
+    if 'SlopeAccum' in plots:
+        plt.figure()
+        plt.loglog(A, S, 'ko', linewidth=2)
+        plt.xlabel(accum_label, fontsize=20)
+        plt.ylabel('Slope [$-$]', fontsize=20)
+        plt.tight_layout()
+    if 'SlopeDistance' in plots:
+        plt.figure()
+        plt.plot(x_downstream/1000., S, 'k-', linewidth=2)
+        plt.xlabel('Distance downstream [km]', fontsize=16)
+        plt.ylabel('Slope [$-$]', fontsize=20)
+        plt.tight_layout()
+    if 'AccumDistance' in plots:
+        plt.figure()
+        plt.plot(x_downstream/1000., A, 'k-', linewidth=2)
+        plt.xlabel('Distance downstream [km]', fontsize=16)
+        plt.ylabel(accum_label, fontsize=20)
+        plt.tight_layout()
 
+    plt.show()
+        
 if __name__ == "__main__":
     main()
 
