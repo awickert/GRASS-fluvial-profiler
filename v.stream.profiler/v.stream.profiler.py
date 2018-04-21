@@ -232,7 +232,7 @@ def main():
     # Analysis
     if options['elevation']:
         _include_z = True
-        DEM = RasterRow('DEM')
+        DEM = RasterRow(options['elevation'])
         DEM.open('r')
         z = []
         for row in coords:
@@ -245,7 +245,7 @@ def main():
         _include_z = False
     if options['slope']:
         _include_S = True
-        slope = RasterRow('slope')
+        slope = RasterRow(options['slope'])
         slope.open('r')
         S = []
         for row in coords:
@@ -259,7 +259,7 @@ def main():
         _include_S = False
     if options['accumulation']:
         _include_A = True
-        accumulation = RasterRow('accumulation')
+        accumulation = RasterRow(options['accumulation'])
         accumulation.open('r')
         A = []
         for row in coords:
