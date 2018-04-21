@@ -189,6 +189,7 @@ def main():
     z = []
     if options['direction'] == 'downstream':
         # Get network
+        gscript.message("Network")
         while selected_cats[-1] != 0:
             selected_cats.append(int(tostream[cats == selected_cats[-1]]))
         x.append(selected_cats[-1])
@@ -199,10 +200,14 @@ def main():
         data.open('r') # Open this object for reading
         
         coords = []
+        _i = 0
         for i in range(len(data)):
             if type(data.read(i+1)) is vector.geometry.Line:
                 if data.read(i+1).cat in selected_cats:
                     coords.append(data.read(i+1).to_array())
+                    gscript.core.percent(_i, len(selected_cats), 100./len(selected_cats))
+                    _i += 1
+        gscript.core.percent(1, 1, 1)
         coords = np.vstack(np.array(coords))
         
         _dx = np.diff(coords[:,0])
@@ -231,45 +236,69 @@ def main():
                    cats=selected_cats_csv, overwrite=gscript.overwrite() )
     
     # Analysis
+    gscript.message("Elevation")
     if options['elevation']:
         _include_z = True
         DEM = RasterRow(options['elevation'])
         DEM.open('r')
         z = []
+        _i = 0
+        _lasti = 0
         for row in coords:
             z.append(DEM.get_value(Point(row[0], row[1])))
+            if float(_i)/len(coords) > float(_lasti)/len(coords):
+                gscript.core.percent(_i, len(coords), np.floor(_i - _lasti))
+            _lasti = _i
+            _i += 1
         DEM.close()
         z = np.array(z)
         if options['window'] is not '':
             x_downstream, z = moving_average(x_downstream_0, z, window)
+        gscript.core.percent(1, 1, 1)
     else:
         _include_z = False
+    gscript.message("Slope")
     if options['slope']:
         _include_S = True
         slope = RasterRow(options['slope'])
         slope.open('r')
         S = []
+        _i = 0
+        _lasti = 0
         for row in coords:
             S.append(slope.get_value(Point(row[0], row[1])))
+            if float(_i)/len(coords) > float(_lasti)/len(coords):
+                gscript.core.percent(_i, len(coords), np.floor(_i - _lasti))
+            _lasti = _i
+            _i += 1
         slope.close()
         S = np.array(S)
         S_0 = S.copy()
         if options['window'] is not '':
             x_downstream, S = moving_average(x_downstream_0, S, window)
+        gscript.core.percent(1, 1, 1)
     else:
         _include_S = False
+    gscript.message("Accumulation")
     if options['accumulation']:
         _include_A = True
         accumulation = RasterRow(options['accumulation'])
         accumulation.open('r')
         A = []
+        _i = 0
+        _lasti = 0
         for row in coords:
             A.append(accumulation.get_value(Point(row[0], row[1])) * accum_mult)
+            if float(_i)/len(coords) > float(_lasti)/len(coords):
+                gscript.core.percent(_i, len(coords), np.floor(_i - _lasti))
+            _lasti = _i
+            _i += 1
         accumulation.close()
         A = np.array(A)
         A_0 = A.copy()
         if options['window'] is not '':
             x_downstream, A = moving_average(x_downstream_0, A, window)
+        gscript.core.percent(1, 1, 1)
     else:
         _include_A = False
 
@@ -341,7 +370,7 @@ def main():
         header = np.array(header)
         outfile = np.vstack((header, outfile))
         np.savetxt(options['outfile_smoothed'], outfile, '%s')
-        
+    
 if __name__ == "__main__":
     main()
 
