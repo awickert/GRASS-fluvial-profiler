@@ -5,7 +5,8 @@
 #
 # AUTHOR(S):    Andrew Wickert
 #
-# PURPOSE:      Build long profiles and slope--area diagrams of a river network
+# PURPOSE:      Build long profiles and slope--accumulation (e.g., 
+#               slope--area) diagrams of a river network
 #
 # COPYRIGHT:    (c) 2016-2018 Andrew Wickert
 #
