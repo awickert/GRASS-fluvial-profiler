@@ -162,7 +162,8 @@ def main():
     options, flags = gscript.parser()
     
     # Parsing
-    window = float(options['window'])
+    if options['window'] is not '':
+        window = float(options['window'])
     accum_mult = float(options['accum_mult'])
     if options['units'] == 'm2':
         accum_label = 'Drainage area [m$^2$]'
