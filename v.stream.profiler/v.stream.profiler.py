@@ -148,6 +148,28 @@ def moving_average(x, y, window):
                                  (x > _x - window/2.) ]))
     return out_x, out_y
 
+def get_xEN(cat, x0=0., streams=options['streams']):
+    """
+    """
+    data = vector.VectorTopo(streams) # Create a VectorTopo object
+    data.open('r') # Open this object for reading
+
+    coords = data.cat(cat_id=cat, vtype='lines')[0]
+
+    x_downstream = [x0]
+    E = [ coords[0].x ]
+    N = [ coords[0].y ]
+    for _i in range(1, len(coords)):
+        x_downstream.append(coords[_i-1].distance(coords[_i]))
+        E.append(coords[_i].x)
+        N.append(coords[_i].y)
+    x_downstream = np.cumsum(x_downstream)[::-1]
+    
+    data.close()
+    
+    return x_downstream, E, N
+
+
 ###############
 # MAIN MODULE #
 ###############
@@ -179,6 +201,7 @@ def main():
     # Attributes of streams
     colNames = np.array(vector_db_select(options['streams'])['columns'])
     colValues = np.array(vector_db_select(options['streams'])['values'].values())
+    raise(UserWarning, 'tostream is not generalized')
     tostream = colValues[:,colNames == 'tostream'].astype(int).squeeze()
     cats = colValues[:,colNames == 'cat'].astype(int).squeeze() # = "fromstream"
 
@@ -217,18 +240,68 @@ def main():
         x_downstream = x_downstream_0.copy()
         
     elif options['direction'] == 'upstream':
-        #terminalCATS = list(options['cat'])
-        #while terminalCATS:
-            #
-        print "Upstream direction not yet active!"
-        return
-        """
-        # Add new lists for each successive upstream river
-        river_is_upstream =
-        while
-        full_river_cats
-        """
-    
+        # Get all cats in network
+        data = vector.VectorTopo(streams) # Create a VectorTopo object
+        data.open('r') # Open this object for reading
+        # GENERALIZE COLUMN NAME!!!!!!!!
+        tostream_col = np.where(np.array(a.columns.names()) == 'tostream')[0][0]
+        terminalCats = [options['cat']]
+        terminal_x_values = [0]
+        netcats = []
+        net_tocats = []
+        while len(terminalCats) > 0:
+            for cat in terminalCats:
+                netcats.append(cat)
+                net_tocats.append(data.table_to_dict()[cat][7])
+            oldcats = terminalCats
+            terminalCats = []
+            for cat in oldcats:
+                terminalCats += list(cats[tostream == cat])
+        data.close()
+        netcats = np.array(netcats)
+        net_tocats = np.array(net_tocats)
+        
+        selected_cats = netcats
+        #coords = data.cat(cat_id=cat, vtype='lines')[0]
+        
+        # Figure this out
+        x_downstream = []
+        E = []
+        N = []
+        for _i in range(len(netcats)):
+            cat = netcats[_i]
+            tocat = net_tocats[_i]
+            if tocat == 0:
+                x0 = 0.
+            else:
+                x0 = np.max(x_downstream[np.where(netcats == tocat)[0][0]])
+            xEN = get_xEN(cat, x0=x0)
+            x_downstream.append(xEN[0])
+            E.append(xEN[1])
+            N.append(xEN[2])
+
+        # Elevation
+        # Definitely make these into objects in the future! For now, much indexing
+        DEM = RasterRow(options['elevation'])
+        DEM.open('r')
+        z = []
+        for __i in range(len(netcats)):
+            cat = netcats[__i]
+            zsub = []
+            for _j in range(len(E[__i])):
+                zsub.append(DEM.get_value(Point(E[__i][_j], N[__i][_j])))
+            z.append(zsub)
+            
+        for __i in range(len(netcats)):
+            plt.plot(x_downstream[__i], z[__i], 'k-')
+            plt.pause(0.2)
+
+        
+        # START THINKING ABOUT HOW TO KEEP NETWORK SEGMENTS TOGETHER
+        # CREATE A KIND OF OBJECT THAT STORES CAT PATHWAYS?
+        # MARCH UP AND THEN DOWN?
+        # ADD WAY TO SET END SEGMENT?
+                
     # Network extraction
     if options['outstream'] is not '':
         selected_cats_str = list(np.array(selected_cats).astype(str))

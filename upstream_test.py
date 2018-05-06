@@ -1,0 +1,9 @@
+options = {}
+options['window'] = 0
+options['units'] = 'km2'
+options['streams'] = 'streams_all'
+options['direction'] = 'upstream'
+options['accum_mult'] = 1
+options['plots'] = ''
+options['cat'] = 113
+options['elevation'] = 'DEM'
