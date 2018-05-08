@@ -246,10 +246,10 @@ class Network(object):
         upstream-most segment was defined)
         """
         self.get_to_segment_ids()
-        headwater_segments = []
+        self.headwater_segments = []
         for segment in self.segment_list:
             if segment.id not in self.to_ids_flattened:
-                headwater_segments.append(segment.id)
+                self.headwater_segments.append(segment.id)
     
     def compute_x_in_network(self, overlapping_termini=True):
         """
