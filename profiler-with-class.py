@@ -12,6 +12,8 @@ options['elevation'] = 'DEM'
 ##################
 # IMPORT MODULES #
 ##################
+# CUSTOM
+import RiverNetwork as rn
 # PYTHON
 import numpy as np
 from matplotlib import pyplot as plt
@@ -66,31 +68,9 @@ z = []
 
 # Import data by segment
 
-selected_cats = []
-segment = int(options['cat'])
-selected_cats.append(segment)
-while selected_cats[-1] != 0:
-    selected_cats.append(int(tostream[cats == selected_cats[-1]]))
-if selected_cats[-1] == 0:
-    selected_cats = selected_cats[:-1] # remove 0 at end if flow is offmap
 
-# Extract x points in network
-data = vector.VectorTopo(options['streams']) # Create a VectorTopo object
-data.open('r') # Open this object for reading
-coordsGRASS = []
-coords_flattened = []
-coords = []
-for cat in selected_cats:
-    points_with_cat = data.cat(cat_id=cat, vtype='lines')[0]
-    coordsGRASS.append(points_with_cat)
-    subcoords = []
-    for point in points_with_cat:
-        subcoords.append([point.x, point.y])
-        coords_flattened.append([point.x, point.y])
-    subcoords = np.array(subcoords)
-    coords.append(subcoords)
-data.close()
-coords_flattened = coords_flattened
+
+# NECESSARY
 
 from grass.pygrass.gis import region
 from grass.pygrass.vector.basic import Bbox 
@@ -133,24 +113,59 @@ class BoundingBox(object):
         self.bbox.west = self.xmin
         self.bbox.east = self.xmax
 
-bbox = BoundingBox(points_xy=coords_flattened)
+
+
+# START TESTS
+
+selected_cats = []
+segment = int(options['cat'])
+selected_cats.append(segment)
+while selected_cats[-1] != 0:
+    selected_cats.append(int(tostream[cats == selected_cats[-1]]))
+if selected_cats[-1] == 0:
+    selected_cats = selected_cats[:-1] # remove 0 at end if flow is offmap
+
+# Extract x points in network
+data = vector.VectorTopo(options['streams']) # Create a VectorTopo object
+data.open('r') # Open this object for reading
+segments = []
+for cat in selected_cats:
+    points_with_cat = data.cat(cat_id=cat, vtype='lines')[0]
+    subcoords = []
+    for point in points_with_cat:
+        subcoords.append([point.x, point.y])
+    segments.append( rn.Segment(_id=cat, to_ids=tostream[cats == cat]) )
+    segments[-1].set_EastingNorthing(ENarray=subcoords)
+    segments[-1].calc_x_from_EastingNorthing()
+data.close()
+
+net = rn.Network(segments)
+
+
+bbox = BoundingBox(points_xy=net.segments_xy_flattened())
 reg = region.Region()
 reg.set_bbox(bbox.bbox)
 reg.write()
-
-x = np.arange(reg.west + reg.ewres/2., reg.east, reg.ewres)
-y = np.arange(reg.south + reg.nsres/2., reg.north, reg.nsres)
 
 DEM = garray.array()
 DEM.read(options['elevation'])
 DEM = np.flipud(DEM)
 
 # nearest or linear?
+x = np.arange(reg.west + reg.ewres/2., reg.east, reg.ewres)
+y = np.arange(reg.south + reg.nsres/2., reg.north, reg.nsres)
 itp = RegularGridInterpolator( (x, y), DEM.transpose(), method='nearest')
-z = []
-for 
 
-res = itp(coords[1])
+for segment in net.segment_list:
+    segment.set_z( itp(segment.EastingNorthing) )
+    
+
+
+# END TESTS
+
+
+for segment in net.segment_list:
+    plt.plot(segment.x, segment.z)
 
 #itp = RegularGridInterpolator( (y, x), DEM, method='nearest')
 #res = itp((coords[0][:,1], coords[0][:,0]))
