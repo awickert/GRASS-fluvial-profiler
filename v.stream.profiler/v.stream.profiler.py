@@ -126,6 +126,9 @@ from grass.pygrass.raster import RasterRow
 from grass.pygrass import utils
 from grass import script as gscript
 from grass.pygrass.vector.geometry import Point
+import warnings
+from multiprocessing import Pool
+
 
 ###################
 # UTILITY MODULES #
@@ -201,7 +204,7 @@ def main():
     # Attributes of streams
     colNames = np.array(vector_db_select(options['streams'])['columns'])
     colValues = np.array(vector_db_select(options['streams'])['values'].values())
-    raise(UserWarning, 'tostream is not generalized')
+    warnings.warn('tostream is not generalized')
     tostream = colValues[:,colNames == 'tostream'].astype(int).squeeze()
     cats = colValues[:,colNames == 'cat'].astype(int).squeeze() # = "fromstream"
 
@@ -209,14 +212,13 @@ def main():
     selected_cats = []
     segment = int(options['cat'])
     selected_cats.append(segment)
-    x = []
-    z = []
+
     if options['direction'] == 'downstream':
         # Get network
         gscript.message("Network")
         while selected_cats[-1] != 0:
             selected_cats.append(int(tostream[cats == selected_cats[-1]]))
-        x.append(selected_cats[-1])
+        #x.append(selected_cats[-1])
         selected_cats = selected_cats[:-1] # remove 0 at end
         
         # Extract x points in network
@@ -239,12 +241,15 @@ def main():
         x_downstream_0 = np.hstack((0, np.cumsum((_dx**2 + _dy**2)**.5)))
         x_downstream = x_downstream_0.copy()
         
+        data.close()
+        
     elif options['direction'] == 'upstream':
         # Get all cats in network
-        data = vector.VectorTopo(streams) # Create a VectorTopo object
+        data = vector.VectorTopo(options['streams']) # Create a VectorTopo object
         data.open('r') # Open this object for reading
         # GENERALIZE COLUMN NAME!!!!!!!!
-        tostream_col = np.where(np.array(a.columns.names()) == 'tostream')[0][0]
+        tostream_col = np.where(np.array(data.table.columns.names())
+                                == 'tostream')[0][0]
         terminalCats = [options['cat']]
         terminal_x_values = [0]
         netcats = []
@@ -252,6 +257,7 @@ def main():
         while len(terminalCats) > 0:
             for cat in terminalCats:
                 netcats.append(cat)
+                # ALSO UNADVISABLE NAME -- NEED TO GET TOSTREAM, GENERALIZED
                 net_tocats.append(data.table_to_dict()[cat][7])
             oldcats = terminalCats
             terminalCats = []
@@ -263,6 +269,10 @@ def main():
         
         selected_cats = netcats
         #coords = data.cat(cat_id=cat, vtype='lines')[0]
+        
+        
+        #### SWITCH TO PROFILER WITH CLASS HERE ####
+        
         
         # Figure this out
         x_downstream = []
