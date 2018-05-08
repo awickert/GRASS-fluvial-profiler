@@ -110,6 +110,11 @@
 ##################
 # IMPORT MODULES #
 ##################
+# CUSTOM
+# temporary patch
+import sys
+sys.path.insert(0, '/home/awickert/dataanalysis/GRASS-fluvial-profiler/v.stream.profiler/')
+import RiverNetwork as rn
 # PYTHON
 import numpy as np
 from matplotlib import pyplot as plt
@@ -127,7 +132,16 @@ from grass.pygrass import utils
 from grass import script as gscript
 from grass.pygrass.vector.geometry import Point
 import warnings
-from multiprocessing import Pool
+from grass.script import array as garray
+from scipy.interpolate import RegularGridInterpolator
+from grass.pygrass.gis import region
+from grass.pygrass.vector.basic import Bbox
+
+###################
+# PARSER - GLOBAL #
+###################
+
+options, flags = gscript.parser()
 
 
 ###################
@@ -172,6 +186,44 @@ def get_xEN(cat, x0=0., streams=options['streams']):
     
     return x_downstream, E, N
 
+class BoundingBox(object):
+    """
+    Easily define a bounding box around your data source, padded to include
+    the raster grid cells (if these are important)
+    """
+    def __init__(self, points_xy=None, align_to_region=True, xmin=None, 
+                 xmax=None, ymin=None, ymax=None):
+        if points_xy is not None:
+            points = np.array(points_xy)
+            self.xmin = np.min(points[:,0])
+            self.xmax = np.max(points[:,0])
+            self.ymin = np.min(points[:,1])
+            self.ymax = np.max(points[:,1])
+        else:
+            self.xmin = xmin
+            self.ymin = ymin
+            self.xmax = xmax
+            self.ymax = ymax
+        if align_to_region is not None:
+            reg = region.Region()
+            self.xmin = np.floor( (self.xmin - reg.get_bbox().west) / 
+                                   reg.ewres ) * \
+                                   reg.ewres + reg.get_bbox().west
+            self.ymin = np.floor( (self.ymin - reg.get_bbox().south ) / 
+                                   reg.nsres ) * \
+                                   reg.nsres + reg.get_bbox().south
+            self.xmax = np.ceil( (self.xmax - reg.get_bbox().east ) / 
+                                  reg.ewres ) * \
+                                  reg.ewres + reg.get_bbox().east
+            self.ymax = np.ceil( (self.ymax - reg.get_bbox().north ) / 
+                                  reg.nsres ) * \
+                                  reg.nsres + reg.get_bbox().north
+        self.bbox = Bbox()
+        self.bbox.north = self.ymax
+        self.bbox.south = self.ymin
+        self.bbox.west = self.xmin
+        self.bbox.east = self.xmax
+
 
 ###############
 # MAIN MODULE #
@@ -184,10 +236,11 @@ def main():
     means that the river exits the map.
     """
 
-    options, flags = gscript.parser()
-    
     # Parsing
-    window = float(options['window'])
+    try:
+        window = float(options['window'])
+    except:
+        window = options['window']
     accum_mult = float(options['accum_mult'])
     if options['units'] == 'm2':
         accum_label = 'Drainage area [m$^2$]'
@@ -213,6 +266,10 @@ def main():
     segment = int(options['cat'])
     selected_cats.append(segment)
 
+    # Get all cats in network
+    data = vector.VectorTopo(options['streams']) # Create a VectorTopo object
+    data.open('r') # Open this object for reading
+
     if options['direction'] == 'downstream':
         # Get network
         gscript.message("Network")
@@ -220,6 +277,9 @@ def main():
             selected_cats.append(int(tostream[cats == selected_cats[-1]]))
         #x.append(selected_cats[-1])
         selected_cats = selected_cats[:-1] # remove 0 at end
+        
+        """
+        ##### FIND RIGHT SPOT TO ADD CLASS STUFF HERE/BELOW ####
         
         # Extract x points in network
         data = vector.VectorTopo(options['streams']) # Create a VectorTopo object
@@ -242,15 +302,13 @@ def main():
         x_downstream = x_downstream_0.copy()
         
         data.close()
+        """
         
     elif options['direction'] == 'upstream':
-        # Get all cats in network
-        data = vector.VectorTopo(options['streams']) # Create a VectorTopo object
-        data.open('r') # Open this object for reading
         # GENERALIZE COLUMN NAME!!!!!!!!
         tostream_col = np.where(np.array(data.table.columns.names())
                                 == 'tostream')[0][0]
-        terminalCats = [options['cat']]
+        terminalCats = [int(options['cat'])]
         terminal_x_values = [0]
         netcats = []
         net_tocats = []
@@ -258,12 +316,15 @@ def main():
             for cat in terminalCats:
                 netcats.append(cat)
                 # ALSO UNADVISABLE NAME -- NEED TO GET TOSTREAM, GENERALIZED
-                net_tocats.append(data.table_to_dict()[cat][7])
+                #print data.table_to_dict()
+                colnum = np.where( np.array(data.table.columns.names()) 
+                                   == 'tostream')[0][0]
+                net_tocats.append(data.table_to_dict()[cat][colnum])
             oldcats = terminalCats
             terminalCats = []
             for cat in oldcats:
                 terminalCats += list(cats[tostream == cat])
-        data.close()
+        #data.close()
         netcats = np.array(netcats)
         net_tocats = np.array(net_tocats)
         
@@ -271,47 +332,29 @@ def main():
         #coords = data.cat(cat_id=cat, vtype='lines')[0]
         
         
-        #### SWITCH TO PROFILER WITH CLASS HERE ####
-        
-        
-        # Figure this out
-        x_downstream = []
-        E = []
-        N = []
-        for _i in range(len(netcats)):
-            cat = netcats[_i]
-            tocat = net_tocats[_i]
-            if tocat == 0:
-                x0 = 0.
-            else:
-                x0 = np.max(x_downstream[np.where(netcats == tocat)[0][0]])
-            xEN = get_xEN(cat, x0=x0)
-            x_downstream.append(xEN[0])
-            E.append(xEN[1])
-            N.append(xEN[2])
+    #### SWITCHING TO PROFILER WITH CLASS HERE ####
+    # Extract x points in network
+    #data = vector.VectorTopo(options['streams']) # Create a VectorTopo object
+    #data.open('r') # Open this object for reading
+    segments = []
+    for cat in selected_cats:
+        points_with_cat = data.cat(cat_id=cat, vtype='lines')[0]
+        subcoords = []
+        for point in points_with_cat:
+            subcoords.append([point.x, point.y])
+        segments.append( rn.Segment(_id=cat, to_ids=tostream[cats == cat]) )
+        segments[-1].set_EastingNorthing(ENarray=subcoords)
+        segments[-1].calc_x_from_EastingNorthing()
+    data.close()
 
-        # Elevation
-        # Definitely make these into objects in the future! For now, much indexing
-        DEM = RasterRow(options['elevation'])
-        DEM.open('r')
-        z = []
-        for __i in range(len(netcats)):
-            cat = netcats[__i]
-            zsub = []
-            for _j in range(len(E[__i])):
-                zsub.append(DEM.get_value(Point(E[__i][_j], N[__i][_j])))
-            z.append(zsub)
-            
-        for __i in range(len(netcats)):
-            plt.plot(x_downstream[__i], z[__i], 'k-')
-            plt.pause(0.2)
+    net = rn.Network(segments)
 
-        
-        # START THINKING ABOUT HOW TO KEEP NETWORK SEGMENTS TOGETHER
-        # CREATE A KIND OF OBJECT THAT STORES CAT PATHWAYS?
-        # MARCH UP AND THEN DOWN?
-        # ADD WAY TO SET END SEGMENT?
-                
+    bbox = BoundingBox(points_xy=net.segments_xy_flattened())
+    reg_to_revert = region.Region()
+    reg = region.Region() # to limit region for computational efficiency
+    reg.set_bbox(bbox.bbox)
+    reg.write()
+    
     # Network extraction
     if options['outstream'] is not '':
         selected_cats_str = list(np.array(selected_cats).astype(str))
@@ -320,27 +363,38 @@ def main():
                    cats=selected_cats_csv, overwrite=gscript.overwrite() )
     
     # Analysis
+
+    # Downstream distances -- 0 at mouth
+    net.compute_x_in_network()
+
+    # Elevation
     gscript.message("Elevation")
     if options['elevation']:
         _include_z = True
-        DEM = RasterRow(options['elevation'])
-        DEM.open('r')
-        z = []
+        # Load DEM
+        griddata = garray.array()
+        griddata.read(options['elevation'])
+        griddata = np.flipud(griddata)
+        # Interpolate: nearest or linear?
+        x = np.arange(reg.west + reg.ewres/2., reg.east, reg.ewres)
+        y = np.arange(reg.south + reg.nsres/2., reg.north, reg.nsres)
+        itp = RegularGridInterpolator( (x, y), griddata.transpose(), 
+                                       method='nearest')
         _i = 0
-        _lasti = 0
-        for row in coords:
-            z.append(DEM.get_value(Point(row[0], row[1])))
-            if float(_i)/len(coords) > float(_lasti)/len(coords):
-                gscript.core.percent(_i, len(coords), np.floor(_i - _lasti))
-            _lasti = _i
-            _i += 1
-        DEM.close()
-        z = np.array(z)
-        if options['window'] is not '':
-            x_downstream, z = moving_average(x_downstream_0, z, window)
+        for segment in net.segment_list:
+            segment.set_z( itp(segment.EastingNorthing) )
+            gscript.core.percent( _i, len(net.segment_list), 
+                                  100 * float(_i)/float(len(net.segment_list)) )
+        del griddata
+        warnings.warn('Need to handle window in network')
+        # Perhaps by going downe each stream individually?
+        #if options['window'] is not '':
+        #    x_downstream, z = moving_average(x_downstream_0, z, window)
         gscript.core.percent(1, 1, 1)
     else:
         _include_z = False
+
+    # Slope
     gscript.message("Slope")
     if options['slope']:
         _include_S = True
@@ -363,6 +417,8 @@ def main():
         gscript.core.percent(1, 1, 1)
     else:
         _include_S = False
+
+    # Accumulation / drainage area
     gscript.message("Accumulation")
     if options['accumulation']:
         _include_A = True
@@ -386,11 +442,16 @@ def main():
     else:
         _include_A = False
 
+    # Revert to original region
+    reg_to_revert
+
     # Plotting
     if 'LongProfile' in plots:
         plt.figure()
-        plt.plot(x_downstream/1000., z, 'k-', linewidth=2)
-        plt.xlabel('Distance downstream [km]', fontsize=16)
+        for segment in net.segment_list:
+            plt.plot(segment.x/1000., segment.z, 'k-', linewidth=2)
+        #plt.plot(x_downstream/1000., z, 'k-', linewidth=2)
+        plt.xlabel('Distance from mouth [km]', fontsize=16)
         plt.ylabel('Elevation [m]', fontsize=20)
         plt.tight_layout()
     if 'SlopeAccum' in plots:
@@ -413,7 +474,8 @@ def main():
         plt.tight_layout()
     plt.show()
     
-    # Saving data
+    # Saving data -- will need to update for more complex data structures!
+    warnings.warn('update to saving data needed')
     if options['outfile_original'] is not '':
         header = ['x_downstream', 'E', 'N']
         outfile = np.hstack((np.expand_dims(x_downstream_0, axis=1), coords))
