@@ -5,7 +5,8 @@ options['streams'] = 'streams_all'
 options['direction'] = 'upstream'
 options['accum_mult'] = 1
 options['plots'] = ''
-options['cat'] = 113
+#options['cat'] = 113
+options['cat'] = 103
 options['elevation'] = 'DEM'
 
 
@@ -116,7 +117,8 @@ class BoundingBox(object):
 
 
 # START TESTS
-
+"""
+# DOWNSTREAM
 selected_cats = []
 segment = int(options['cat'])
 selected_cats.append(segment)
@@ -124,6 +126,7 @@ while selected_cats[-1] != 0:
     selected_cats.append(int(tostream[cats == selected_cats[-1]]))
 if selected_cats[-1] == 0:
     selected_cats = selected_cats[:-1] # remove 0 at end if flow is offmap
+"""
 
 # Extract x points in network
 data = vector.VectorTopo(options['streams']) # Create a VectorTopo object
@@ -159,7 +162,7 @@ itp = RegularGridInterpolator( (x, y), DEM.transpose(), method='nearest')
 for segment in net.segment_list:
     segment.set_z( itp(segment.EastingNorthing) )
     
-
+net.compute_x_in_network()
 
 # END TESTS
 

@@ -227,10 +227,17 @@ class Network(object):
         """
         get list of all segments that flow offmap
         """
+        self.get_segment_ids()
         self.offmap_segments = []
+        # With the below, we can probbaly just ditch this top part of code
         for segment in self.segment_list:
             if segment.to_ids == 0:
                 self.offmap_segments.append(segment.id)
+        # More robust -- see which ones do not go to an on-map segment
+        for segment in self.segment_list:
+            if len([i for i in segment.to_ids if i in self.ids]) == 0:
+                self.offmap_segments.append(segment.id)
+                
         
     def compute_headwater_segments(self):
         """
@@ -266,24 +273,29 @@ class Network(object):
                 # March upstream, replacing lists of ids and associated
                 # downstream x-values as you go
                 for _id in terminal_ids:
-                    # Next upstream segment IDs
+                    # Update x
+                    segment = np.array(self.segment_list)[self.ids == _id][0]
+                    segment.x = segment.x - segment.x[-1] + x_downstream[_j]
+                    # Updates for upcoming round
                     for _i in range(len(self.to_ids)):
+                        # Next upstream segment IDs
                         if (self.to_ids[_i] == _id).any():
                             terminal_ids_next.append(self.ids[_i])
-                    # Then update x
-                    segment = np.array(self.segment_list)[self.ids == _id][0]
-                    segment.x = segment.x - segment.x[-1] + x_downstream
+                        # Update the list of x values at the end of the next set
+                        if self.overlapping_termini:
+                            # To produce the same count
+                            if (self.to_ids[_i] == _id).any():
+                                x_downstream_next.append(segment.x[0])
+                        else:
+                            sys.exit("I don't know how to deal with this case")
                     # segment.set_fromids(from_ids) # or append? unnecessary...
-                    # Update the list of x values at the end of the next set
-                    if self.overlapping_termini:
-                        x_downstream_next.append(segment.x[0])
-                    else:
-                        sys.exit("I don't know how to deal with this case")
                     _j += 1
-                    # Replace main arrays with temp arrays
-                    terminal_ids = terminal_ids_next
-                    x_downstream = x_downstream_next
-                        
+                # Replace main arrays with temp arrays
+                print terminal_ids
+                print x_downstream
+                terminal_ids = terminal_ids_next
+                x_downstream = x_downstream_next
+        
     def compute_profile_from_starting_segment(self):
         """
         Compute a single long profile
