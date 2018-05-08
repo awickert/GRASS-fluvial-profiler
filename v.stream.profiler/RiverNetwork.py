@@ -291,8 +291,8 @@ class Network(object):
                     # segment.set_fromids(from_ids) # or append? unnecessary...
                     _j += 1
                 # Replace main arrays with temp arrays
-                print terminal_ids
-                print x_downstream
+                #print terminal_ids
+                #print x_downstream
                 terminal_ids = terminal_ids_next
                 x_downstream = x_downstream_next
         
