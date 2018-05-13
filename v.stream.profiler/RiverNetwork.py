@@ -4,6 +4,7 @@
 # ADW
 
 import numpy as np
+from scipy.interpolate import interp1d
 import warnings
 
 class Segment(object):
@@ -20,8 +21,9 @@ class Segment(object):
         self.z = None
         self.XP = None
         self.B = None
-        self.E = None
-        self.N = None
+        #self.E = None
+        #self.N = None
+        self.target_dx_downstream = None
         self.segment_type = segment_type
         self.allowed_segment_types = ['stream',
                                       'lake']
@@ -92,6 +94,16 @@ class Segment(object):
         """
         self.A = A
         
+    def set_target_dx_downstream(self, target_dx_downstream):
+        """
+        Set spacing between points in a downstream direction
+        This will almost certainly not divide evenly into the length of a
+        stream segment, and will therefore be used as the target distance 
+        between nodes, which will be adjusted for an integer number of 
+        divisible distances using np.ceil
+        """
+        self.target_dx_downstream = target_dx_downstream
+        
     def set_fromids(self, from_id):
         """
         Set the ID of the stream from which 
@@ -122,11 +134,11 @@ class Segment(object):
         """
         if ENarray is not None:
             self.EastingNorthing = np.array(ENarray)
-            self.Easting = self.EastingNorthing[:,1]
+            self.Easting = self.EastingNorthing[:,0]
             self.Northing = self.EastingNorthing[:,1]
         elif (Easting is not None) and (Northing is not None):
-            self.Easting = self.Easting
-            self.Northing = self.Northing
+            self.Easting = Easting
+            self.Northing = Northing
         else:
             warnings.warn("Improper inputs")            
         
@@ -138,9 +150,49 @@ class Segment(object):
         if (self.Easting is not None) and (self.Northing is not None):
             dx = ( np.diff(self.Easting)**2 + np.diff(self.Northing)**2 )**.5
             self.x = np.hstack((0., np.cumsum(dx)))
+            self.x_local = self.x.copy()
         else:
             warnings.warn("Both Easting and Northing must be defined")
+            
+    def densify_x_E_N(self):
+        """
+        Especially if E, N, are taken only at vertices, there can be a 
+        signficant lack of resolution in the network. This seeks to densify 
+        the network based on a target downstream dx.
         
+        This will not preserve points at the coordinates of all of the corners
+        of the fluvial network. It will create backups of the original grid
+        to do this. It could be reprogrammed to optionally preserve these 
+        corners.
+        
+        Run this after calc_x_from_EastingNorthing and set_target_dx_downstream
+        """
+        if self.target_dx_downstream is None:
+            warnings.warn("Nothing will be done; run set_target_dx_downstream")
+        elif (self.Easting is None) or (self.Northing is None):
+            warnings.warn("Nothing will be done; Set Easting and Northing")
+        elif self.x_local is None:
+            warnings.warn("Nothing will be done; Set x (and x_local)")
+        else:
+            # Backup original
+            self.Easting_original = self.Easting.copy()
+            self.Northing_original = self.Northing.copy()
+            self.x_local_original = self.x_local.copy()
+            ixE = interp1d(self.x_local_original, self.Easting_original)
+            ixN = interp1d(self.x_local_original, self.Northing_original)
+            #print self.Easting[-1], self.Northing[-1]
+            # +1 because it includes the bookends
+            # Ceil instead of round for short segments
+            nx = np.ceil( ( np.max(self.x_local) - np.min(self.x_local) )
+                            / self.target_dx_downstream ) + 1.
+            self.x_local = np.linspace( np.min(self.x_local_original), 
+                                        np.max(self.x_local_original), 
+                                        nx )
+            self.Easting = ixE(self.x_local)
+            self.Northing = ixN(self.x_local)
+            self.EastingNorthing = \
+                 np.vstack((self.Easting, self.Northing)).transpose()
+                    
 class BoundingBox(object):
     """
     Easily define a bounding box around your data source, padded to include
@@ -275,7 +327,8 @@ class Network(object):
                 for _id in terminal_ids:
                     # Update x
                     segment = np.array(self.segment_list)[self.ids == _id][0]
-                    segment.x = segment.x - segment.x[-1] + x_downstream[_j]
+                    segment.x = segment.x_local - segment.x_local[-1] \
+                                + x_downstream[_j]
                     # Updates for upcoming round
                     for _i in range(len(self.to_ids)):
                         # Next upstream segment IDs
@@ -295,6 +348,9 @@ class Network(object):
                 #print x_downstream
                 terminal_ids = terminal_ids_next
                 x_downstream = x_downstream_next
+                
+    #def interpolate_xEN_in_network(self):
+        
         
     def compute_profile_from_starting_segment(self):
         """

@@ -81,7 +81,13 @@
 #%  answer: 1
 #%  required: no
 #%end
-#%option G_OPT_R_INPUT
+#%option
+#%  key: dx_target
+#%  type: double
+#%  label: Target distance between output stream points [map units]
+#%  required: no
+#%end
+#%option
 #%  key: window
 #%  label: Averaging distance [map units]
 #%  required: no
@@ -208,16 +214,20 @@ class BoundingBox(object):
             reg = region.Region()
             self.xmin = np.floor( (self.xmin - reg.get_bbox().west) / 
                                    reg.ewres ) * \
-                                   reg.ewres + reg.get_bbox().west
+                                   reg.ewres + reg.get_bbox().west \
+                                   - reg.ewres
             self.ymin = np.floor( (self.ymin - reg.get_bbox().south ) / 
                                    reg.nsres ) * \
-                                   reg.nsres + reg.get_bbox().south
+                                   reg.nsres + reg.get_bbox().south \
+                                   - reg.nsres
             self.xmax = np.ceil( (self.xmax - reg.get_bbox().east ) / 
                                   reg.ewres ) * \
-                                  reg.ewres + reg.get_bbox().east
+                                  reg.ewres + reg.get_bbox().east \
+                                   + reg.ewres
             self.ymax = np.ceil( (self.ymax - reg.get_bbox().north ) / 
                                   reg.nsres ) * \
-                                  reg.nsres + reg.get_bbox().north
+                                  reg.nsres + reg.get_bbox().north \
+                                   + reg.nsres
         self.bbox = Bbox()
         self.bbox.north = self.ymax
         self.bbox.south = self.ymin
@@ -345,6 +355,14 @@ def main():
         segments.append( rn.Segment(_id=cat, to_ids=tostream[cats == cat]) )
         segments[-1].set_EastingNorthing(ENarray=subcoords)
         segments[-1].calc_x_from_EastingNorthing()
+        # x grid spacing
+        print segments[-1].Easting[-1], segments[-1].Northing[-1]
+        print segments[-1].EastingNorthing[-1]
+        print ""
+        if options['dx_target'] is not '':
+            options['dx_target'] = float(options['dx_target'])
+            segments[-1].set_target_dx_downstream(options['dx_target'])
+            segments[-1].densify_x_E_N()
     data.close()
 
     net = rn.Network(segments)
@@ -382,7 +400,15 @@ def main():
                                        method='nearest')
         _i = 0
         for segment in net.segment_list:
-            segment.set_z( itp(segment.EastingNorthing) )
+            #print ""
+            #print segment.id, segment.Easting, segment.Northing
+            #print segment.Easting_original, segment.Northing_original
+            try:
+                segment.set_z( itp(segment.EastingNorthing) )
+            except:
+                print segment.EastingNorthing
+                print np.vstack((segment.Easting_original, segment.Northing_original)).transpose()
+                sys.exit()
             gscript.core.percent( _i, len(net.segment_list), 
                                   100 * float(_i)/float(len(net.segment_list)) )
         del griddata
@@ -516,6 +542,8 @@ def main():
         header = np.array(header)
         outfile = np.vstack((header, outfile))
         np.savetxt(options['outfile_smoothed'], outfile, '%s')
+    
+    #print net.segment_list[0].x net.segment_list[0].E, net.segment_list[0].N
     
 if __name__ == "__main__":
     main()
