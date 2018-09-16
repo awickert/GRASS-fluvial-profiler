@@ -366,7 +366,7 @@ def main():
             segments[-1].set_target_dx_downstream(options['dx_target'])
             segments[-1].densify_x_E_N()
     data.close()
-
+    
     net = rn.Network(segments)
 
     bbox = BoundingBox(points_xy=net.segments_xy_flattened())
@@ -402,9 +402,6 @@ def main():
                                        method='nearest')
         _i = 0
         for segment in net.segment_list:
-            #print ""
-            #print segment.id, segment.Easting, segment.Northing
-            #print segment.Easting_original, segment.Northing_original
             try:
                 segment.set_z( itp(segment.EastingNorthing) )
             except:
@@ -415,9 +412,6 @@ def main():
                                   100 * float(_i)/float(len(net.segment_list)) )
         del griddata
         warnings.warn('Need to handle window in network')
-        # Perhaps by going downe each stream individually?
-        #if options['window'] is not '':
-        #    x_downstream, z = moving_average(x_downstream_0, z, window)
         gscript.core.percent(1, 1, 1)
     else:
         _include_z = False
@@ -431,7 +425,7 @@ def main():
         S = []
         _i = 0
         _lasti = 0
-        for row in coords:
+        for row in net.EastingNorthing:
             S.append(slope.get_value(Point(row[0], row[1])))
             if float(_i)/len(coords) > float(_lasti)/len(coords):
                 gscript.core.percent(_i, len(coords), np.floor(_i - _lasti))
@@ -455,7 +449,7 @@ def main():
         A = []
         _i = 0
         _lasti = 0
-        for row in coords:
+        for row in net.EastingNorthing:
             A.append(accumulation.get_value(Point(row[0], row[1])) * accum_mult)
             if float(_i)/len(coords) > float(_lasti)/len(coords):
                 gscript.core.percent(_i, len(coords), np.floor(_i - _lasti))
@@ -504,6 +498,12 @@ def main():
     
     # Saving data -- will need to update for more complex data structures!
     warnings.warn('update to saving data needed')
+    net.compute_profile_from_starting_segment()
+    header = ['x_downstream', 'E', 'N', 'z']
+    outfile = np.vstack((header, net.long_profile_output))
+    np.savetxt(options['outfile_original'], outfile, '%s')
+    
+    """
     if options['outfile_original'] is not '':
         header = ['x_downstream', 'E', 'N']
         outfile = np.hstack((np.expand_dims(x_downstream_0, axis=1), coords))
@@ -544,6 +544,7 @@ def main():
         header = np.array(header)
         outfile = np.vstack((header, outfile))
         np.savetxt(options['outfile_smoothed'], outfile, '%s')
+    """
     
     #print net.segment_list[0].x net.segment_list[0].E, net.segment_list[0].N
     

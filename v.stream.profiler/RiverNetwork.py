@@ -354,10 +354,17 @@ class Network(object):
         
     def compute_profile_from_starting_segment(self):
         """
-        Compute a single long profile
-        Note that this may not be easy if there is a fork in a river!
-        Note to self: consider simplifying network geometry to just
-        what I will need (tributaries joining)
-        Although I would prefer to keep it general, philosophically...
+        Compute a single long profile from a starting river segment
+        This code currently assumes that you have built the network from 
+        just a starting segment, and so doesn't walk downstream, but rather
+        takes the segments in order. This could be easily fixed by checking 
+        the indices of the next river downstream.
         """
-        pass
+        outlist = []
+        for segment in self.segment_list:
+            for i in range(len(segment.z)):
+                print [segment.x[i], segment.Easting[i], segment.Northing[i], segment.z[i]]
+                outlist.append([segment.x[i], segment.Easting[i], segment.Northing[i], segment.z[i]])
+        self.long_profile_output = outlist
+        
+        
