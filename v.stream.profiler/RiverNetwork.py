@@ -366,23 +366,6 @@ class Network(object):
                 
     #def interpolate_xEN_in_network(self):
         
-    def moving_average(x, y, window):
-        """
-        Create a moving average every <window/2> points with an averaging
-        distance of <window>, but including the the first point + window/2
-        and the last point - window/2
-        (so distance to last point could be irregular)
-        """
-        x = np.array(x)
-        y = np.array(y)
-        out_x = np.arange(x[0]+window/2., x[-1]-window/2., window)
-        out_x = np.hstack((out_x, x[-1]-window/2.))
-        out_y = []
-        for _x in out_x:
-            out_y.append( np.mean(y[ (x < _x + window/2.) * 
-                                     (x > _x - window/2.) ]))
-        return out_x, out_y
-
     def compute_downstream_paths_from_headwaters(self):
         """
         Non-parsimonious: every full long profile
@@ -402,7 +385,7 @@ class Network(object):
                                                   int(segment.to_ids)]
             self.downstream_paths_from_headwaters.append(pathlist)
 
-    def get_index_per_point_from_headwaters(self):
+    def compute_index_per_point_from_headwaters(self):
         self.index_per_point_from_headwaters = []
         for _id_list in self.downstream_paths_from_headwaters:
             tmplist = []
@@ -411,7 +394,7 @@ class Network(object):
                 tmplist += [segment.id] * len(segment.x)
             self.index_per_point_from_headwaters.append(np.array(tmplist))
 
-    def get_x_from_headwaters(self):
+    def compute_x_from_headwaters(self):
         self.x_from_headwaters = []
         for _id_list in self.downstream_paths_from_headwaters:
             tmplist = []
@@ -420,7 +403,7 @@ class Network(object):
                 tmplist += list(segment.x)
             self.x_from_headwaters.append(np.array(tmplist))
     
-    def get_z_from_headwaters(self):
+    def compute_z_from_headwaters(self):
         self.z_from_headwaters = []
         for _id_list in self.downstream_paths_from_headwaters:
             tmplist = []
@@ -429,8 +412,9 @@ class Network(object):
                 tmplist += list(segment.z)
             self.z_from_headwaters.append(np.array(tmplist))
     
-    def get_slope_from_headwaters(self):
+    def compute_slope_from_headwaters(self):
         self.slope_from_headwaters = []
+        # NEED SETTER!
         for _id_list in self.downstream_paths_from_headwaters:
             tmplist = []
             for _id in _id_list:
@@ -438,8 +422,9 @@ class Network(object):
                 tmplist += list(segment.channel_slope)
             self.slope_from_headwaters.append(np.array(tmplist))
     
-    def get_accum_from_headwaters(self):
+    def compute_accum_from_headwaters(self):
         self.accum_from_headwaters = []
+        # NEED SETTER!
         for _id_list in self.downstream_paths_from_headwaters:
             tmplist = []
             for _id in _id_list:
@@ -447,12 +432,84 @@ class Network(object):
                 tmplist += list(segment.channel_flow_accumulation)
             self.accum_from_headwaters.append(np.array(tmplist))
 
-    def smooth_window(self):
+    def smooth_from_headwaters(self, var):
+        #var = self.z_from_headwaters
+        _y_smoothed = []
+        for i in range(len(var)):
+            _y_smoothed.append( np.array(self.moving_average(
+                            self.x_from_headwaters[i], var[i], self.window)) )
+        return _y_smoothed
+            
+    def moving_average(self, _x, _y, window):
+        """
+        Create a moving average at every point over a distance of window/2
+        """
+        _x = np.array(_x)
+        _y = np.array(_y)
+        out_y = []
+        for _xi in _x:
+            out_y.append( np.mean(_y[ (_x < _xi + window/2.) * 
+                                      (_x > _xi - window/2.) ]))
+        return out_y
+        #return out_x, out_y
+
+    def smooth_window(self, window):
         """
         Smoothes using a moving window
+        written as a sketch here
         """
-        for segment in self.segment_list:
+        self.window = window
+        self.compute_downstream_paths_from_headwaters()
+        self.compute_index_per_point_from_headwaters()
+        self.compute_x_from_headwaters()
+
+        try:
+            self.compute_z_from_headwaters()
+            _sfh = self.smooth_from_headwaters(self.z_from_headwaters)
+            for segment in self.segment_list:
+                tmp = []
+                for i in range(len(_sfh)):
+                    _path = _sfh[i]
+                    _ipp = self.index_per_point_from_headwaters[i]
+                    _append = _path[_ipp == segment.id]
+                    if len(_append) > 0:
+                        tmp.append(_append)
+                # USE SETTER
+                segment.z_smoothed = np.average(tmp, axis=0)
+        except:
             pass
+        try:
+            self.compute_slope_from_headwaters()
+            _sfh = self.smooth_from_headwaters(self.slope_from_headwaters)
+            for segment in self.segment_list:
+                tmp = []
+                for i in range(len(_sfh)):
+                    _path = _sfh[i]
+                    _ipp = self.index_per_point_from_headwaters[i]
+                    _append = _path[_ipp == segment.id]
+                    if len(_append) > 0:
+                        tmp.append(_append)
+                # USE SETTER
+                segment.channel_slope_smoothed = np.average(tmp, axis=0)
+        except:
+            pass
+        try:
+            self.compute_accum_from_headwaters()
+            _sfh = self.smooth_from_headwaters(self.accum_from_headwaters)
+            for segment in self.segment_list:
+                tmp = []
+                for i in range(len(_sfh)):
+                    _path = _sfh[i]
+                    _ipp = self.index_per_point_from_headwaters[i]
+                    _append = _path[_ipp == segment.id]
+                    if len(_append) > 0:
+                        tmp.append(_append)
+                # USE SETTER
+                segment.channel_flow_accumulation_smoothed = \
+                                               np.average(tmp, axis=0)
+        except:
+            pass
+
         # Average across all paths that include the segment
     
     def compute_profile_from_starting_segment(self):

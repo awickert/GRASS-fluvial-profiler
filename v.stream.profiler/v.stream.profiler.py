@@ -510,9 +510,9 @@ def main():
             # MAKE SETTER FOR THIS!!!!
             segment.channel_slope = np.array(S)
         if window is not None:
-            net.smooth()
-            _x_downstream, _S = moving_average(x_downstream_0, S, window)
-        """
+            pass
+            #net.smooth_window()
+            #_x_downstream, _S = moving_average(x_downstream_0, S, window)
         _slope.close()
         S = np.array(S)
         S_0 = S.copy()
@@ -558,25 +558,42 @@ def main():
     # Revert to original region
     reg_to_revert
 
+    # Smoothing
+    if window is not None:
+        net.smooth_window(window)
+
     # Plotting
     if 'LongProfile' in plots:
         plt.figure()
-        for segment in net.segment_list:
-            plt.plot(segment.x/1000., segment.z, 'k-', linewidth=2)
+        if window:
+            for segment in net.segment_list:
+                plt.plot(segment.x/1000., segment.z_smoothed, 'k-', linewidth=2)
+        else:
+            for segment in net.segment_list:
+                plt.plot(segment.x/1000., segment.z, 'k-', linewidth=2)
         #plt.plot(x_downstream/1000., z, 'k-', linewidth=2)
         plt.xlabel('Distance from mouth [km]', fontsize=16)
         plt.ylabel('Elevation [m]', fontsize=20)
         plt.tight_layout()
     if 'SlopeAccum' in plots:
         plt.figure()
-        for segment in net.segment_list:
-            _x_points = segment.channel_slope[
-                                      segment.channel_flow_accumulation > 0
-                                      ]
-            _y_points = segment.channel_flow_accumulation[
-                                         segment.channel_flow_accumulation > 0
-                                         ]
-            plt.plot(_x_points/1000., _y_points, 'k.', linewidth=2)
+        if window:
+            for segment in net.segment_list:
+                _y_points = segment.channel_slope_smoothed[
+                                segment.channel_flow_accumulation_smoothed > 0
+                                ]
+                _x_points = segment.channel_flow_accumulation[
+                                segment.channel_flow_accumulation_smoothed > 0
+                                ]
+        else:
+            for segment in net.segment_list:
+                _y_points = segment.channel_slope[
+                                    segment.channel_flow_accumulation > 0
+                                    ]
+                _x_points = segment.channel_flow_accumulation[
+                                    segment.channel_flow_accumulation > 0
+                                    ]
+        plt.plot(_x_points/1000., _y_points, 'k.', linewidth=2)
         plt.xlabel(accum_label, fontsize=20)
         plt.ylabel('Slope [$-$]', fontsize=20)
         plt.tight_layout()
