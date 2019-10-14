@@ -582,7 +582,7 @@ def main():
                 _y_points = segment.channel_slope_smoothed[
                                 segment.channel_flow_accumulation_smoothed > 0
                                 ]
-                _x_points = segment.channel_flow_accumulation[
+                _x_points = segment.channel_flow_accumulation_smoothed[
                                 segment.channel_flow_accumulation_smoothed > 0
                                 ]
         else:
@@ -593,7 +593,7 @@ def main():
                 _x_points = segment.channel_flow_accumulation[
                                     segment.channel_flow_accumulation > 0
                                     ]
-        plt.plot(_x_points/1000., _y_points, 'k.', linewidth=2)
+        plt.plot(_x_points, _y_points, 'k.')
         plt.xlabel(accum_label, fontsize=20)
         plt.ylabel('Slope [$-$]', fontsize=20)
         plt.tight_layout()
@@ -629,7 +629,16 @@ def main():
         
     if outfile_smoothed:
         gscript.message("Please add code to output the smoothed data!")
+        
+    #print net.accum_from_headwaters[1] - net.slope_from_headwaters[1]
 
+    """
+    for segment in net.segment_list:
+        print segment.channel_flow_accumulation_smoothed
+        print segment.channel_slope_smoothed
+        print segment.channel_flow_accumulation_smoothed - \
+              segment.channel_slope_smoothed
+    """
     
     """
     if options['outfile_original'] is not '':
