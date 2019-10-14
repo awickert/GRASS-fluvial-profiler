@@ -340,15 +340,17 @@ def main():
     data.open('r') # Open this object for reading
 
     if direction == 'downstream':
+        gscript.message("Extracting drainage pathway...",)
         # Get network
-        gscript.message("Network")
         while selected_cats[-1] != 0:
             selected_cats.append(int(tostream[cats == selected_cats[-1]]))
         #x.append(selected_cats[-1])
         selected_cats = selected_cats[:-1] # remove 0 at end
+        gscript.message("Done.")
         
         
     elif direction == 'upstream':
+        gscript.message("Extracting drainage network...",)
         # GENERALIZE COLUMN NAME!!!!!!!!
         tostream_col = np.where(np.array(data.table.columns.names())
                                 == 'tostream')[0][0]
@@ -373,13 +375,8 @@ def main():
         net_tocats = np.array(net_tocats)
         
         selected_cats = netcats
-        #coords = data.cat(cat_id=cat, vtype='lines')[0]
+        gscript.message("Done.")
         
-        
-    #### SWITCHING TO PROFILER WITH CLASS HERE ####
-    # Extract x points in network
-    #data = vector.VectorTopo(options['streams']) # Create a VectorTopo object
-    #data.open('r') # Open this object for reading
     segments = []
     for cat in selected_cats:
         points_with_cat = data.cat(cat_id=cat, vtype='lines')[0]
@@ -390,9 +387,9 @@ def main():
         segments[-1].set_EastingNorthing(ENarray=subcoords)
         segments[-1].calc_x_from_EastingNorthing()
         # x grid spacing
-        print segments[-1].Easting[-1], segments[-1].Northing[-1]
-        print segments[-1].EastingNorthing[-1]
-        print ""
+        #print segments[-1].Easting[-1], segments[-1].Northing[-1]
+        #print segments[-1].EastingNorthing[-1]
+        #print ""
         if dx_target is not None:
             dx_target = float(dx_target)
             segments[-1].set_target_dx_downstream(dx_target)
