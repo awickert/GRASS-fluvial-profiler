@@ -523,7 +523,7 @@ class Network(object):
         outlist = []
         for segment in self.segment_list:
             for i in range(len(segment.z)):
-                print [segment.x[i], segment.Easting[i], segment.Northing[i], segment.z[i]]
+                #print [segment.x[i], segment.Easting[i], segment.Northing[i], segment.z[i]]
                 outlist.append([segment.x[i], segment.Easting[i], segment.Northing[i], segment.z[i]])
         self.long_profile_output = outlist
         
