@@ -573,7 +573,7 @@ def main():
                 plt.plot(segment.x/1000., segment.z, 'k-', linewidth=2)
         #plt.plot(x_downstream/1000., z, 'k-', linewidth=2)
         plt.xlabel('Distance from mouth [km]', fontsize=16)
-        plt.ylabel('Elevation [m]', fontsize=20)
+        plt.ylabel('Elevation [m]', fontsize=16)
         plt.tight_layout()
     if 'SlopeAccum' in plots:
         plt.figure()
@@ -585,6 +585,7 @@ def main():
                 _x_points = segment.channel_flow_accumulation_smoothed[
                                 segment.channel_flow_accumulation_smoothed > 0
                                 ]
+                plt.loglog(_x_points, _y_points, 'k.', alpha=.5)
         else:
             for segment in net.segment_list:
                 _y_points = segment.channel_slope[
@@ -593,14 +594,20 @@ def main():
                 _x_points = segment.channel_flow_accumulation[
                                     segment.channel_flow_accumulation > 0
                                     ]
-        plt.loglog(_x_points, _y_points, 'k.', alpha=.5)
-        plt.xlabel(accum_label, fontsize=20)
-        plt.ylabel('Slope [$-$]', fontsize=20)
+                plt.loglog(_x_points, _y_points, 'k.', alpha=.5)
+        plt.xlabel(accum_label, fontsize=16)
+        plt.ylabel('Slope [$-$]', fontsize=16)
         plt.tight_layout()
     if 'SlopeDistance' in plots:
         plt.figure()
-        for segment in net.segment_list:
-            plt.plot(segment.x/1000., segment.channel_slope, 'k-', linewidth=2)
+        if window:
+            for segment in net.segment_list:
+                plt.plot(segment.x/1000., segment.channel_slope_smoothed,
+                            'k-', linewidth=2)
+        else:
+            for segment in net.segment_list:
+                plt.plot(segment.x/1000., segment.channel_slope,
+                            'k-', linewidth=2)
         plt.xlabel('Distance downstream [km]', fontsize=16)
         plt.ylabel('Slope [$-$]', fontsize=20)
         plt.tight_layout()
@@ -613,7 +620,7 @@ def main():
                                          ]
             plt.plot(_x_points/1000., _y_points, 'k.', alpha=.5)
         plt.xlabel('Distance downstream [km]', fontsize=16)
-        plt.ylabel(accum_label, fontsize=20)
+        plt.ylabel(accum_label, fontsize=16)
         plt.tight_layout()
     plt.show()
     
