@@ -507,9 +507,10 @@ def main():
                         _nexti = len(coords) - 1
                 _lasti = _i
                 _i += 1
+            # MAKE SETTER FOR THIS!!!!
             segment.channel_slope = np.array(S)
-        """
         if window is not None:
+            net.smooth()
             _x_downstream, _S = moving_average(x_downstream_0, S, window)
         """
         _slope.close()
@@ -541,6 +542,7 @@ def main():
                         _nexti = len(coords) - 1
                 _lasti = _i
                 _i += 1
+            # MAKE SETTER FOR THIS!!!!
             segment.channel_flow_accumulation = np.array(A)
         accumulation.close()
         A = np.array(A)
