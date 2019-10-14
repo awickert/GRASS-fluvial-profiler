@@ -366,7 +366,30 @@ class Network(object):
                 
     #def interpolate_xEN_in_network(self):
         
-        
+    def moving_average(x, y, window):
+        """
+        Create a moving average every <window/2> points with an averaging
+        distance of <window>, but including the the first point + window/2
+        and the last point - window/2
+        (so distance to last point could be irregular)
+        """
+        x = np.array(x)
+        y = np.array(y)
+        out_x = np.arange(x[0]+window/2., x[-1]-window/2., window)
+        out_x = np.hstack((out_x, x[-1]-window/2.))
+        out_y = []
+        for _x in out_x:
+            out_y.append( np.mean(y[ (x < _x + window/2.) * 
+                                     (x > _x - window/2.) ]))
+        return out_x, out_y
+
+    def smooth_window(self):
+        """
+        Smoothes using a moving window
+        """
+        for segment in self.segment_list:
+            pass
+    
     def compute_profile_from_starting_segment(self):
         """
         Compute a single long profile from a starting river segment
