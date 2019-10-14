@@ -383,6 +383,40 @@ class Network(object):
                                      (x > _x - window/2.) ]))
         return out_x, out_y
 
+    def compute_downstream_paths_from_headwaters(self):
+        """
+        Non-parsimonious: every full long profile
+        """
+        self.headwaters_segment_ids = []
+        for _id in self.ids:
+            if _id not in self.to_ids:
+                self.headwaters_segment_ids.append(_id)
+        self.downstream_paths_from_headwaters = []
+        for _hwid in self.headwaters_segment_ids:
+            pathlist = []
+            segment_list = self.segment_list[self.ids == _hwid]
+            while len(segment_list) == 1:
+                segment = segment_list[0]
+                pathlist.append(segment.id)
+                segment_list = self.segment_list[self.ids == 
+                                                  int(segment.to_ids)]
+            self.downstream_paths_from_headwaters.append(pathlist)
+
+    def get_index_from_headwaters(self):
+        pass
+
+    def get_x_from_headwaters(self):
+        pass
+    
+    def get_z_from_headwaters(self):
+        pass
+    
+    def get_slope_from_headwaters(self):
+        pass
+    
+    def get_accum_from_headwaters(self):
+        pass
+
     def smooth_window(self):
         """
         Smoothes using a moving window
