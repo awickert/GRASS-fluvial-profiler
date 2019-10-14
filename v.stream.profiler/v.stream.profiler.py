@@ -489,19 +489,29 @@ def main():
         _include_S = True
         _slope = RasterRow(slope)
         _slope.open('r')
-        S = []
         _i = 0
         _lasti = 0
+        _nexti = 0
         for segment in net.segment_list:
             sen = segment.EastingNorthing # all E,N
+            S = []
             for row in sen:
+                #try:
                 S.append(_slope.get_value(Point(row[0], row[1])))
-                if float(_i)/len(coords) > float(_lasti)/len(coords):
+                #except:
+                #    print "ERROR"
+                if _i > _nexti:
                     gscript.core.percent(_i, len(coords), np.floor(_i - _lasti))
+                    _nexti = float(_nexti) + len(coords)/10.
+                    if _nexti > len(coords):
+                        _nexti = len(coords) - 1
                 _lasti = _i
                 _i += 1
+            segment.channel_slope = np.array(S)
+        """
         if window is not None:
             _x_downstream, _S = moving_average(x_downstream_0, S, window)
+        """
         _slope.close()
         S = np.array(S)
         S_0 = S.copy()
@@ -512,24 +522,33 @@ def main():
     # Accumulation / drainage area
     if accumulation:
         gscript.message("Accumulation")
-        print accumulation
         _include_A = True
         accumulation = RasterRow(accumulation)
         accumulation.open('r')
-        A = []
         _i = 0
         _lasti = 0
-        for row in net.EastingNorthing:
-            A.append(accumulation.get_value(Point(row[0], row[1])) * accum_mult)
-            if float(_i)/len(coords) > float(_lasti)/len(coords):
-                gscript.core.percent(_i, len(coords), np.floor(_i - _lasti))
-            _lasti = _i
-            _i += 1
+        _nexti = 0
+        for segment in net.segment_list:
+            A = []
+            sen = segment.EastingNorthing # all E,N
+            for row in sen:
+                A.append(accumulation.get_value(Point(row[0], row[1])) 
+                                                          * accum_mult)
+                if _i > _nexti:
+                    gscript.core.percent(_i, len(coords), np.floor(_i - _lasti))
+                    _nexti = float(_nexti) + len(coords)/10.
+                    if _nexti > len(coords):
+                        _nexti = len(coords) - 1
+                _lasti = _i
+                _i += 1
+            segment.channel_flow_accumulation = np.array(A)
         accumulation.close()
         A = np.array(A)
         A_0 = A.copy()
+        """
         if window is not None:
-            x_downstream, A = moving_average(x_downstream_0, A, window)
+            _x_downstream, A = moving_average(x_downstream_0, A, window)
+        """
         gscript.core.percent(1, 1, 1)
     else:
         _include_A = False
@@ -548,19 +567,32 @@ def main():
         plt.tight_layout()
     if 'SlopeAccum' in plots:
         plt.figure()
-        plt.loglog(A, S, 'ko', linewidth=2)
+        for segment in net.segment_list:
+            _x_points = segment.channel_slope[
+                                      segment.channel_flow_accumulation > 0
+                                      ]
+            _y_points = segment.channel_flow_accumulation[
+                                         segment.channel_flow_accumulation > 0
+                                         ]
+            plt.plot(_x_points/1000., _y_points, 'k.', linewidth=2)
         plt.xlabel(accum_label, fontsize=20)
         plt.ylabel('Slope [$-$]', fontsize=20)
         plt.tight_layout()
     if 'SlopeDistance' in plots:
         plt.figure()
-        plt.plot(x_downstream/1000., S, 'k-', linewidth=2)
+        for segment in net.segment_list:
+            plt.plot(segment.x/1000., segment.channel_slope, 'k-', linewidth=2)
         plt.xlabel('Distance downstream [km]', fontsize=16)
         plt.ylabel('Slope [$-$]', fontsize=20)
         plt.tight_layout()
     if 'AccumDistance' in plots:
         plt.figure()
-        plt.plot(x_downstream/1000., A, 'k-', linewidth=2)
+        for segment in net.segment_list:
+            _x_points = segment.x[segment.channel_flow_accumulation > 0]
+            _y_points = segment.channel_flow_accumulation[
+                                         segment.channel_flow_accumulation > 0
+                                         ]
+            plt.plot(_x_points/1000., _y_points, 'k.', linewidth=2)
         plt.xlabel('Distance downstream [km]', fontsize=16)
         plt.ylabel(accum_label, fontsize=20)
         plt.tight_layout()
