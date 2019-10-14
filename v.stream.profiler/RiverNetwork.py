@@ -213,10 +213,10 @@ class Network(object):
         Downstream_x = the x-value or values for the offmap cell(s);
         they default to 0 and will be expanded to a list in this case
         offmap_id is the ID given to offmap segments (to_id = offmap_id if a 
-        segment flows offmap). Thid defaults to 0 following GRASS GIS 
+        segment flows offmap). This defaults to 0 following GRASS GIS 
         convention.
         """
-        self.segment_list = segment_list
+        self.segment_list = np.array(segment_list)
         # Convenient info to have in lists
         # identifiers and connections
         self.ids = []
@@ -227,6 +227,13 @@ class Network(object):
         self.ids = np.array(self.ids)
         #self.to_ids = np.array(self.to_ids)
         self.offmap_id = offmap_id # 0 default following GRASS GIS
+        # Get ID of downstream-most segment
+        # Is downstream-most if "tosegment" is not in the list
+        for segment in self.segment_list:
+            if np.sum(self.ids == segment.to_ids[0][0]) == 0:
+                self.downstream_most_id = segment.id
+                break
+        self.downstream_x = downstream_x
         
     def compute_fromstreams(self):
         """
@@ -273,7 +280,7 @@ class Network(object):
         self.to_ids = []
         for segment in self.segment_list:
             self.to_ids.append(segment.to_ids)
-        self.to_ids_flattened = np.hstack(self.to_ids)
+        self.to_ids_flattened = np.squeeze(np.hstack(self.to_ids))
     
     def compute_offmap_segments(self):
         """
@@ -303,51 +310,59 @@ class Network(object):
             if segment.id not in self.to_ids_flattened:
                 self.headwater_segments.append(segment.id)
     
+    def set_hierarchy_order(self):
+        """
+        Get IDs in order going upstream.
+        Helps with calculating distance downstream
+        """
+        self.get_to_segment_ids()
+        self.hierarchy_ids = []
+        _ids = [self.downstream_most_id]
+        while(len(_ids) > 0):
+            self.hierarchy_ids.append(_ids)
+            __ids = []
+            for _id in _ids:
+                __ids.append(self.ids[self.to_ids_flattened == _id])
+            __ids = np.hstack(__ids)
+            _ids = list(__ids)
+    
     def compute_x_in_network(self, overlapping_termini=True):
         """
         Get distance along each stream path
+        * Straightforward for downstream at map resolution
+        * For upstream, need to march through tributary network to 
+          obtain connectivity, and then turn this into a set of distances
+        * For reduced resolution (for compute time): need to keep track of 
+          endpoints from initial survey
         "Ovelapping termini" means that the nodes between each segment are
-        shared by 
+        shared among adjacent segments
+        
+        Can move from bottom up in all cases.
         """
-        # Flag so we know
-        # e.g., for numerical modeling on the network
+        
+
         self.overlapping_termini = overlapping_termini
-        # Find all offmap segments
         self.compute_offmap_segments()
-        # Find segments that flow to these, etc. (see other code)
-        for terminus in self.offmap_segments:
-            x_downstream = [0.] # start
-            terminal_ids = [terminus]
-            while len(terminal_ids) > 0:
-                x_downstream_next = []
-                terminal_ids_next = []
-                _j = 0
-                # March upstream, replacing lists of ids and associated
-                # downstream x-values as you go
-                for _id in terminal_ids:
-                    # Update x
-                    segment = np.array(self.segment_list)[self.ids == _id][0]
-                    segment.x = segment.x_local - segment.x_local[-1] \
-                                + x_downstream[_j]
-                    # Updates for upcoming round
-                    for _i in range(len(self.to_ids)):
-                        # Next upstream segment IDs
-                        if (self.to_ids[_i] == _id).any():
-                            terminal_ids_next.append(self.ids[_i])
-                        # Update the list of x values at the end of the next set
-                        if self.overlapping_termini:
-                            # To produce the same count
-                            if (self.to_ids[_i] == _id).any():
-                                x_downstream_next.append(segment.x[0])
-                        else:
-                            sys.exit("I don't know how to deal with this case")
-                    # segment.set_fromids(from_ids) # or append? unnecessary...
-                    _j += 1
-                # Replace main arrays with temp arrays
-                #print terminal_ids
-                #print x_downstream
-                terminal_ids = terminal_ids_next
-                x_downstream = x_downstream_next
+        self.set_hierarchy_order()
+
+        # This is ordered from downstream to upstream
+        for _id_list in self.hierarchy_ids:
+            for _id in _id_list:
+                segment = self.segment_list[self.ids == _id][0]
+                # Will break in a branching network
+                downstream_segment_id = int(segment.to_ids)
+                downstream_segment = self.segment_list[self.ids == 
+                                                       downstream_segment_id]
+                if len(downstream_segment) == 0:
+                    x_downstream = self.downstream_x
+                elif len(downstream_segment) > 1:
+                    sys.exit("Downstream-branching network: not supported!")
+                else:
+                    downstream_segment = downstream_segment[0]
+                    x_downstream = downstream_segment.x[0]
+                segment.x = segment.x_local - segment.x_local[-1] \
+                                + x_downstream
+
                 
     #def interpolate_xEN_in_network(self):
         
