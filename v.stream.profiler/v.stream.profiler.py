@@ -299,6 +299,9 @@ def main():
     if outfile_original == '': outfile_original = None
     outfile_smoothed = options['outfile_smoothed']
     if outfile_smoothed == '': outfile_smoothed = None
+    # !!!!!!!!!!!!!!!!!
+    # ADD SWITCHES TO INDIVIDUALLY SMMOOTH SLOPE, ACCUM, ETC.
+    # !!!!!!!!!!!!!!!!!
     try:
         window = float(options['window'])
     except:
@@ -468,6 +471,8 @@ def main():
         itp = RegularGridInterpolator( (x, y), griddata.transpose(), 
                                        method='nearest')
         _i = 0
+        _lasti = 0
+        _nexti = 0
         for segment in net.segment_list:
             try:
                 segment.set_z( itp(segment.EastingNorthing) )
@@ -475,11 +480,17 @@ def main():
                 print segment.EastingNorthing
                 print np.vstack((segment.Easting_original, segment.Northing_original)).transpose()
                 sys.exit()
-            gscript.core.percent( _i, len(net.segment_list), 
-                                  100 * float(_i)/float(len(net.segment_list)) )
-        del griddata
-        warnings.warn('Need to handle window in network')
+            if _i > _nexti:
+                gscript.core.percent( _i, len(net.segment_list), np.floor(_i - _lasti))
+                _nexti = float(_nexti) + len(net.segment_list)/10.
+                if _nexti > len(net.segment_list):
+                    _nexti = len(net.segment_list) - 1
+            _lasti = _i
+            _i += 1
         gscript.core.percent(1, 1, 1)
+        del griddata
+        #warnings.warn('Need to handle window in network')
+        #gscript.core.percent(1, 1, 1)
     else:
         _include_z = False
 
@@ -593,7 +604,7 @@ def main():
                 _x_points = segment.channel_flow_accumulation[
                                     segment.channel_flow_accumulation > 0
                                     ]
-        plt.plot(_x_points, _y_points, 'k.')
+        plt.loglog(_x_points, _y_points, 'k.', alpha=.5)
         plt.xlabel(accum_label, fontsize=20)
         plt.ylabel('Slope [$-$]', fontsize=20)
         plt.tight_layout()
@@ -611,7 +622,7 @@ def main():
             _y_points = segment.channel_flow_accumulation[
                                          segment.channel_flow_accumulation > 0
                                          ]
-            plt.plot(_x_points/1000., _y_points, 'k.', linewidth=2)
+            plt.plot(_x_points/1000., _y_points, 'k.', alpha=.5)
         plt.xlabel('Distance downstream [km]', fontsize=16)
         plt.ylabel(accum_label, fontsize=20)
         plt.tight_layout()
