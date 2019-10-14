@@ -402,20 +402,50 @@ class Network(object):
                                                   int(segment.to_ids)]
             self.downstream_paths_from_headwaters.append(pathlist)
 
-    def get_index_from_headwaters(self):
-        pass
+    def get_index_per_point_from_headwaters(self):
+        self.index_per_point_from_headwaters = []
+        for _id_list in self.downstream_paths_from_headwaters:
+            tmplist = []
+            for _id in _id_list:
+                segment = self.segment_list[self.ids == _id][0]
+                tmplist += [segment.id] * len(segment.x)
+            self.index_per_point_from_headwaters.append(np.array(tmplist))
 
     def get_x_from_headwaters(self):
-        pass
+        self.x_from_headwaters = []
+        for _id_list in self.downstream_paths_from_headwaters:
+            tmplist = []
+            for _id in _id_list:
+                segment = self.segment_list[self.ids == _id][0]
+                tmplist += list(segment.x)
+            self.x_from_headwaters.append(np.array(tmplist))
     
     def get_z_from_headwaters(self):
-        pass
+        self.z_from_headwaters = []
+        for _id_list in self.downstream_paths_from_headwaters:
+            tmplist = []
+            for _id in _id_list:
+                segment = self.segment_list[self.ids == _id][0]
+                tmplist += list(segment.z)
+            self.z_from_headwaters.append(np.array(tmplist))
     
     def get_slope_from_headwaters(self):
-        pass
+        self.slope_from_headwaters = []
+        for _id_list in self.downstream_paths_from_headwaters:
+            tmplist = []
+            for _id in _id_list:
+                segment = self.segment_list[self.ids == _id][0]
+                tmplist += list(segment.channel_slope)
+            self.slope_from_headwaters.append(np.array(tmplist))
     
     def get_accum_from_headwaters(self):
-        pass
+        self.accum_from_headwaters = []
+        for _id_list in self.downstream_paths_from_headwaters:
+            tmplist = []
+            for _id in _id_list:
+                segment = self.segment_list[self.ids == _id][0]
+                tmplist += list(segment.channel_flow_accumulation)
+            self.accum_from_headwaters.append(np.array(tmplist))
 
     def smooth_window(self):
         """
@@ -423,6 +453,7 @@ class Network(object):
         """
         for segment in self.segment_list:
             pass
+        # Average across all paths that include the segment
     
     def compute_profile_from_starting_segment(self):
         """
