@@ -149,6 +149,40 @@ from grass.pygrass.vector.basic import Bbox
 
 options, flags = gscript.parser()
 
+_cat = int(options['cat'])
+overwrite_flag = gscript.overwrite()
+elevation = options['elevation']
+if elevation == '': elevation = None    
+slope = options['slope']
+if slope == '': slope = None    
+accumulation = options['accumulation']
+if accumulation == '': accumulation = None
+direction = options['direction']
+if direction == '': direction = None
+streams = options['streams']
+if streams == '': streams = None
+outstream = options['outstream']
+if outstream == '': outstream = None
+try:
+    window = float(options['window'])
+except:
+    window = None
+try:
+    dx_target = float(options['dx_target'])
+except:
+    dx_target = None
+accum_mult = float(options['accum_mult'])
+if options['units'] == 'm2':
+    accum_label = 'Drainage area [m$^2$]'
+elif options['units'] == 'km2':
+    accum_label = 'Drainage area [km$^2$]'
+elif options['units'] == 'cumecs':
+    accum_label = 'Water discharge [m$^3$ s$^{-1}$]'
+elif options['units'] == 'cfs':
+    accum_label = 'Water discharge [cfs]'
+else:
+    accum_label = 'Flow accumulation [$-$]'
+plots = options['plots'].split(',')
 
 ###################
 # UTILITY MODULES #
@@ -171,7 +205,7 @@ def moving_average(x, y, window):
                                  (x > _x - window/2.) ]))
     return out_x, out_y
 
-def get_xEN(cat, x0=0., streams=options['streams']):
+def get_xEN(cat, x0=0., streams=streams):
     """
     """
     data = vector.VectorTopo(streams) # Create a VectorTopo object
@@ -246,13 +280,33 @@ def main():
     means that the river exits the map.
     """
 
-    # Parsing
-    #if options['window'] is not '':
-    #    window = float(options['window'])
+    # Parsing inside function
+    _cat = int(options['cat'])
+    overwrite_flag = gscript.overwrite()
+    elevation = options['elevation']
+    if elevation == '': elevation = None    
+    slope = options['slope']
+    if slope == '': slope = None    
+    accumulation = options['accumulation']
+    if accumulation == '': accumulation = None
+    direction = options['direction']
+    if direction == '': direction = None
+    streams = options['streams']
+    if streams == '': streams = None
+    outstream = options['outstream']
+    if outstream == '': outstream = None
+    outfile_original = options['outfile_original']
+    if outfile_original == '': outfile_original = None
+    outfile_smoothed = options['outfile_smoothed']
+    if outfile_smoothed == '': outfile_smoothed = None
     try:
         window = float(options['window'])
     except:
-        window = options['window']
+        window = None
+    try:
+        dx_target = float(options['dx_target'])
+    except:
+        dx_target = None
     accum_mult = float(options['accum_mult'])
     if options['units'] == 'm2':
         accum_label = 'Drainage area [m$^2$]'
@@ -265,24 +319,24 @@ def main():
     else:
         accum_label = 'Flow accumulation [$-$]'
     plots = options['plots'].split(',')
-    
+
     # Attributes of streams
-    colNames = np.array(vector_db_select(options['streams'])['columns'])
-    colValues = np.array(vector_db_select(options['streams'])['values'].values())
+    colNames = np.array(vector_db_select(streams)['columns'])
+    colValues = np.array(vector_db_select(streams)['values'].values())
     warnings.warn('tostream is not generalized')
     tostream = colValues[:,colNames == 'tostream'].astype(int).squeeze()
     cats = colValues[:,colNames == 'cat'].astype(int).squeeze() # = "fromstream"
 
     # We can loop over this list to get the shape of the full river network.
     selected_cats = []
-    segment = int(options['cat'])
+    segment = _cat
     selected_cats.append(segment)
 
     # Get all cats in network
-    data = vector.VectorTopo(options['streams']) # Create a VectorTopo object
+    data = vector.VectorTopo(streams) # Create a VectorTopo object
     data.open('r') # Open this object for reading
 
-    if options['direction'] == 'downstream':
+    if direction == 'downstream':
         # Get network
         gscript.message("Network")
         while selected_cats[-1] != 0:
@@ -290,37 +344,12 @@ def main():
         #x.append(selected_cats[-1])
         selected_cats = selected_cats[:-1] # remove 0 at end
         
-        """
-        ##### FIND RIGHT SPOT TO ADD CLASS STUFF HERE/BELOW ####
         
-        # Extract x points in network
-        data = vector.VectorTopo(options['streams']) # Create a VectorTopo object
-        data.open('r') # Open this object for reading
-        
-        coords = []
-        _i = 0
-        for i in range(len(data)):
-            if type(data.read(i+1)) is vector.geometry.Line:
-                if data.read(i+1).cat in selected_cats:
-                    coords.append(data.read(i+1).to_array())
-                    gscript.core.percent(_i, len(selected_cats), 100./len(selected_cats))
-                    _i += 1
-        gscript.core.percent(1, 1, 1)
-        coords = np.vstack(np.array(coords))
-        
-        _dx = np.diff(coords[:,0])
-        _dy = np.diff(coords[:,1])
-        x_downstream_0 = np.hstack((0, np.cumsum((_dx**2 + _dy**2)**.5)))
-        x_downstream = x_downstream_0.copy()
-        
-        data.close()
-        """
-        
-    elif options['direction'] == 'upstream':
+    elif direction == 'upstream':
         # GENERALIZE COLUMN NAME!!!!!!!!
         tostream_col = np.where(np.array(data.table.columns.names())
                                 == 'tostream')[0][0]
-        terminalCats = [int(options['cat'])]
+        terminalCats = [_cat]
         terminal_x_values = [0]
         netcats = []
         net_tocats = []
@@ -361,9 +390,9 @@ def main():
         print segments[-1].Easting[-1], segments[-1].Northing[-1]
         print segments[-1].EastingNorthing[-1]
         print ""
-        if options['dx_target'] is not '':
-            options['dx_target'] = float(options['dx_target'])
-            segments[-1].set_target_dx_downstream(options['dx_target'])
+        if dx_target is not None:
+            dx_target = float(dx_target)
+            segments[-1].set_target_dx_downstream(dx_target)
             segments[-1].densify_x_E_N()
     data.close()
     
@@ -376,24 +405,62 @@ def main():
     reg.write()
     
     # Network extraction
-    if options['outstream'] is not '':
+    if outstream:
         selected_cats_str = list(np.array(selected_cats).astype(str))
         selected_cats_csv = ','.join(selected_cats_str)
-        v.extract( input=options['streams'], output=options['outstream'], \
-                   cats=selected_cats_csv, overwrite=gscript.overwrite() )
+        v.extract( input=streams, output=outstream, \
+                   cats=selected_cats_csv, overwrite=overwrite_flag )
     
+    
+    # All coordinates
+    coords = net.segments_xy_flattened()
+    #x_downstream = 
+    
+    # !!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!
+    # UPDATE !!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!
+    """
+    ##### FIND RIGHT SPOT TO ADD CLASS STUFF HERE/BELOW ####
+    
+    # Extract x points in network
+    data = vector.VectorTopo(streams) # Create a VectorTopo object
+    data.open('r') # Open this object for reading
+    
+    coords = []
+    _i = 0
+    for i in range(len(data)):
+        if type(data.read(i+1)) is vector.geometry.Line:
+            if data.read(i+1).cat in selected_cats:
+                coords.append(data.read(i+1).to_array())
+                gscript.core.percent(_i, len(selected_cats), 100./len(selected_cats))
+                _i += 1
+    gscript.core.percent(1, 1, 1)
+    coords = np.vstack(np.array(coords))
+    
+    _dx = np.diff(coords[:,0])
+    _dy = np.diff(coords[:,1])
+    x_downstream_0 = np.hstack((0, np.cumsum((_dx**2 + _dy**2)**.5)))
+    x_downstream = x_downstream_0.copy()
+    
+    data.close()
+    """
+  
+    
+    # TEMPORARY!!!!
+    #x_downstream = get_xEN()
+    #x_downstream_0 = x_downstream[0]
+
     # Analysis
 
     # Downstream distances -- 0 at mouth
     net.compute_x_in_network()
 
     # Elevation
-    gscript.message("Elevation")
-    if options['elevation']:
+    if elevation:
+        gscript.message("Elevation")
         _include_z = True
         # Load DEM
         griddata = garray.array()
-        griddata.read(options['elevation'])
+        griddata.read(elevation)
         griddata = np.flipud(griddata)
         # Interpolate: nearest or linear?
         x = np.arange(reg.west + reg.ewres/2., reg.east, reg.ewres)
@@ -417,34 +484,37 @@ def main():
         _include_z = False
 
     # Slope
-    gscript.message("Slope")
-    if options['slope']:
+    if slope:
+        gscript.message("Slope")
         _include_S = True
-        slope = RasterRow(options['slope'])
-        slope.open('r')
+        _slope = RasterRow(slope)
+        _slope.open('r')
         S = []
         _i = 0
         _lasti = 0
-        for row in net.EastingNorthing:
-            S.append(slope.get_value(Point(row[0], row[1])))
-            if float(_i)/len(coords) > float(_lasti)/len(coords):
-                gscript.core.percent(_i, len(coords), np.floor(_i - _lasti))
-            _lasti = _i
-            _i += 1
-        slope.close()
+        for segment in net.segment_list:
+            sen = segment.EastingNorthing # all E,N
+            for row in sen:
+                S.append(_slope.get_value(Point(row[0], row[1])))
+                if float(_i)/len(coords) > float(_lasti)/len(coords):
+                    gscript.core.percent(_i, len(coords), np.floor(_i - _lasti))
+                _lasti = _i
+                _i += 1
+        if window is not None:
+            _x_downstream, _S = moving_average(x_downstream_0, S, window)
+        _slope.close()
         S = np.array(S)
         S_0 = S.copy()
-        if options['window'] is not '':
-            x_downstream, S = moving_average(x_downstream_0, S, window)
         gscript.core.percent(1, 1, 1)
     else:
         _include_S = False
 
     # Accumulation / drainage area
-    gscript.message("Accumulation")
-    if options['accumulation']:
+    if accumulation:
+        gscript.message("Accumulation")
+        print accumulation
         _include_A = True
-        accumulation = RasterRow(options['accumulation'])
+        accumulation = RasterRow(accumulation)
         accumulation.open('r')
         A = []
         _i = 0
@@ -458,7 +528,7 @@ def main():
         accumulation.close()
         A = np.array(A)
         A_0 = A.copy()
-        if options['window'] is not '':
+        if window is not None:
             x_downstream, A = moving_average(x_downstream_0, A, window)
         gscript.core.percent(1, 1, 1)
     else:
@@ -497,11 +567,18 @@ def main():
     plt.show()
     
     # Saving data -- will need to update for more complex data structures!
-    warnings.warn('update to saving data needed')
-    net.compute_profile_from_starting_segment()
-    header = ['x_downstream', 'E', 'N', 'z']
-    outfile = np.vstack((header, net.long_profile_output))
-    np.savetxt(options['outfile_original'], outfile, '%s')
+    if outfile_original:
+        warnings.warn('update to saving data needed')
+        net.compute_profile_from_starting_segment()
+        header = ['x_downstream', 'E', 'N', 'z']
+        outfile = np.vstack((header, net.long_profile_output))
+        np.savetxt(options['outfile_original'], outfile, '%s')
+    else:
+        pass
+        
+    if outfile_smoothed:
+        gscript.message("Please add code to output the smoothed data!")
+
     
     """
     if options['outfile_original'] is not '':
