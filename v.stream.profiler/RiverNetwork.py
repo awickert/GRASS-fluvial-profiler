@@ -21,6 +21,11 @@ class Segment(object):
         self.z = None
         self.XP = None
         self.B = None
+        self.z_smoothed = None
+        self.channel_flow_accumulation = None
+        self.channel_slope = None
+        self.channel_flow_accumulation_smoothed = None
+        self.channel_slope_smoothed = None
         #self.E = None
         #self.N = None
         self.target_dx_downstream = None
@@ -521,10 +526,45 @@ class Network(object):
         the indices of the next river downstream.
         """
         outlist = []
+        _zbarflag = False
+        _Sflag = False
+        _Sbarflag = False
+        _Aflag = False
+        _Abarflag = False
+        header = ['id', 'E', 'N', 'x_downstream', 'z']
+        segment = self.segment_list[0] # All should have the same parameters
+        if segment.z_smoothed is not None:
+            header.append('z_avg')
+            _zbarflag = True
+        if segment.channel_slope is not None:
+            header.append('S')
+            _Sflag = True
+        if segment.channel_slope_smoothed is not None:
+            header.append('S_avg')
+            _Sbarflag = True
+        if segment.channel_flow_accumulation is not None:
+            header.append('Accum')
+            _Aflag = True
+        if segment.channel_flow_accumulation_smoothed is not None:
+            header.append('Accum_avg')
+            _Abarflag = True
         for segment in self.segment_list:
+            # Seems a clunky way to do this
             for i in range(len(segment.z)):
                 #print [segment.x[i], segment.Easting[i], segment.Northing[i], segment.z[i]]
-                outlist.append([segment.x[i], segment.Easting[i], segment.Northing[i], segment.z[i]])
+                _out_i = [int(segment.id), \
+                          segment.x[i], segment.Easting[i], \
+                          segment.Northing[i], segment.z[i]]
+                if _zbarflag:
+                    _out_i.append(segment.z_smoothed[i])
+                if _Sflag:
+                    _out_i.append(segment.channel_slope[i])
+                if _Sbarflag:
+                    _out_i.append(segment.channel_slope_smoothed[i])
+                if _Aflag:
+                    _out_i.append(segment.channel_flow_accumulation[i])
+                if _Abarflag:
+                    _out_i.append(segment.channel_flow_accumulation_smoothed[i])
+                outlist.append(_out_i)
+        self.long_profile_header = header
         self.long_profile_output = outlist
-        
-        

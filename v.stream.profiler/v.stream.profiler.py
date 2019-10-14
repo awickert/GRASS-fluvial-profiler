@@ -101,15 +101,9 @@
 #%  multiple: yes
 #%end
 #%option
-#%  key: outfile_original
+#%  key: outfile
 #%  type: string
-#%  label: output file for data on original grid
-#%  required: no
-#%end
-#%option
-#%  key: outfile_smoothed
-#%  type: string
-#%  label: output file for data on smoothed grid
+#%  label: output file
 #%  required: no
 #%end
 
@@ -295,12 +289,10 @@ def main():
     if streams == '': streams = None
     outstream = options['outstream']
     if outstream == '': outstream = None
-    outfile_original = options['outfile_original']
-    if outfile_original == '': outfile_original = None
-    outfile_smoothed = options['outfile_smoothed']
-    if outfile_smoothed == '': outfile_smoothed = None
+    outfile = options['outfile']
+    if outfile == '': outfile = None
     # !!!!!!!!!!!!!!!!!
-    # ADD SWITCHES TO INDIVIDUALLY SMMOOTH SLOPE, ACCUM, ETC.
+    # ADD SWITCHES TO INDIVIDUALLY SMOOTH SLOPE, ACCUM, ETC.
     # !!!!!!!!!!!!!!!!!
     try:
         window = float(options['window'])
@@ -626,17 +618,12 @@ def main():
     plt.show()
     
     # Saving data -- will need to update for more complex data structures!
-    if outfile_original:
-        warnings.warn('update to saving data needed')
+    if outfile:
         net.compute_profile_from_starting_segment()
-        header = ['x_downstream', 'E', 'N', 'z']
-        outfile = np.vstack((header, net.long_profile_output))
-        np.savetxt(options['outfile_original'], outfile, '%s')
+        _outfile = np.vstack((net.long_profile_header, net.long_profile_output))
+        np.savetxt(outfile, _outfile, '%s')
     else:
         pass
-        
-    if outfile_smoothed:
-        gscript.message("Please add code to output the smoothed data!")
         
     #print net.accum_from_headwaters[1] - net.slope_from_headwaters[1]
 
