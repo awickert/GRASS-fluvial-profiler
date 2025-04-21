@@ -83,6 +83,7 @@
 ##################
 # PYTHON
 import numpy as np
+import pandas as pd
 from matplotlib import pyplot as plt
 import sys
 # GRASS
@@ -166,26 +167,43 @@ def main():
     streamsTopo.build()
     """
     # v.to.db Works more consistently, at least
+    # NO MORE BUILDING COLUMNS FIRST???
     streamsTopo.close()
-    v.to_db(map=streams, option='start', columns=x1+','+y1)
-    v.to_db(map=streams, option='end', columns=x2+','+y2)
+    v.to_db(map=streams, option='start', columns=x1+','+y1, overwrite=True)
+    v.to_db(map=streams, option='end', columns=x2+','+y2, overwrite=True)
 
     # 4. Read in and save the start and end coordinate points
-    colNames = np.array(vector_db_select(streams)['columns'])
-    colValues = np.array(vector_db_select(streams)['values'].values())
-    cats = colValues[:,colNames == 'cat'].astype(int).squeeze() # river number
-    xy1 = colValues[:,(colNames == 'x1') + (colNames == 'y1')].astype(float) # upstream
-    xy2 = colValues[:,(colNames == 'x2') + (colNames == 'y2')].astype(float) # downstream
+    colNames = vector_db_select(streams)['columns']
+    colValues = vector_db_select(streams)['values'].values()
+    dfnet = pd.DataFrame( data=colValues, columns=colNames )
 
     # 5. Build river network
-    tocat = []
-    for i in range(len(cats)):
-        tosegment_mask = np.prod(xy1 == xy2[i], axis=1)
-        if np.sum(tosegment_mask) == 0:
-            tocat.append(0)
+    x1y1_all = dfnet[[x1,y1]]
+    for i in range( len(dfnet) ):
+        fr_idx = i # Index is the one that flow comes from
+        row = dfnet.loc[i]
+        fr_cat = row['cat']
+        catx = dfnet[row[x2] == dfnet[x1]].cat
+        caty = dfnet[row[y2] == dfnet[y1]].cat
+        cats = list(set(catx).intersection(set(caty)))
+        if ( len(cats) == 0):
+            dfnet.loc[fr_idx, 'to_cat'] = -1
+            continue
+        elif len(cats) > 1:
+            print("Diverging graph!")
+            # Should probably exit condition here
+            print(i)
+            print(row)
+            print(catx)
+            print(caty)
+            break
         else:
-            tocat.append(cats[tosegment_mask.nonzero()[0][0]])
-    tocat = np.asarray(tocat).astype(int)
+            # Must be just one cat
+            cat = cats[0]
+            to_idx = catx[catx == cat].index[0]
+            to_cat = dfnet.loc[to_idx]['cat']
+            dfnet.loc[fr_idx, 'to_cat'] = to_cat
+            dfnet.loc[to_idx, 'fr_cat'] = fr_cat
 
     # This gives us a set of downstream-facing adjacencies.
     # We will update the database with it.
@@ -194,17 +212,19 @@ def main():
     cur = streamsTopo.table.conn.cursor()
     # Default to 0 if no stream flows to it
     cur.execute("update "+streams+" set tostream=0")
-    for i in range(len(tocat)):
-        cur.execute("update "+streams+" set tostream="+str(tocat[i])+" where cat="+str(cats[i]))
+    for i in range(len(dfnet)):
+        cat = dfnet.loc[i, 'cat']
+        to_cat = dfnet.loc[i, 'to_cat']
+        # Might be able to chunk it all straight in, but keeping the old
+        # way, which isn't too slow.
+        cur.execute("update "+streams+" set tostream="+str(to_cat)+" where cat="+cat)
     streamsTopo.table.conn.commit()
     #streamsTopo.build()
     streamsTopo.close()
 
-    gscript.message('')
     gscript.message('Drainage topology built. Check "tostream" column for the downstream cat.')
     gscript.message('A cat value of 0 indicates the downstream-most segment.')
-    gscript.message('')
-
 
 if __name__ == "__main__":
     main()
+
