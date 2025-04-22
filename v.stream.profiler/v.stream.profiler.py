@@ -466,8 +466,8 @@ def main():
             try:
                 segment.set_z( itp(segment.EastingNorthing) )
             except:
-                print segment.EastingNorthing
-                print np.vstack((segment.Easting_original, segment.Northing_original)).transpose()
+                print( segment.EastingNorthing )
+                print( np.vstack((segment.Easting_original, segment.Northing_original)).transpose() )
                 sys.exit()
             if _i > _nexti:
                 gscript.core.percent( _i, len(net.segment_list), np.floor(_i - _lasti))
