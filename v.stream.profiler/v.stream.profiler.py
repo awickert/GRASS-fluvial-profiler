@@ -117,6 +117,7 @@ sys.path.insert(0, '/home/awickert/dataanalysis/GRASS-fluvial-profiler/v.stream.
 import RiverNetwork as rn
 # PYTHON
 import numpy as np
+import pandas as pd
 from matplotlib import pyplot as plt
 import sys
 # GRASS
@@ -316,11 +317,12 @@ def main():
     plots = options['plots'].split(',')
 
     # Attributes of streams
-    colNames = np.array(vector_db_select(streams)['columns'])
-    colValues = np.array(vector_db_select(streams)['values'].values())
+    colNames = vector_db_select(streams)['columns']
+    colValues = vector_db_select(streams)['values'].values()
     warnings.warn('tostream is not generalized')
-    tostream = colValues[:,colNames == 'tostream'].astype(int).squeeze()
-    cats = colValues[:,colNames == 'cat'].astype(int).squeeze() # = "fromstream"
+    dfnet = pd.DataFrame( data=colValues, columns=colNames )
+    tostream = dfnet['tostream']
+    cats = dfnet['cat'].astype(int) # = "fromstream"
 
     # We can loop over this list to get the shape of the full river network.
     selected_cats = []
@@ -334,7 +336,9 @@ def main():
     if direction == 'downstream':
         gscript.message("Extracting drainage pathway...",)
         # Get network
-        while selected_cats[-1] != 0:
+        # -1 TEMPORARILY ALSO USED AS OFFMAP CODE, IN ADDITION TO 0
+        # CHANGE BACK LATER
+        while selected_cats[-1] > 0:
             selected_cats.append(int(tostream[cats == selected_cats[-1]]))
         #x.append(selected_cats[-1])
         selected_cats = selected_cats[:-1] # remove 0 at end
@@ -688,5 +692,9 @@ def main():
     #print net.segment_list[0].x net.segment_list[0].E, net.segment_list[0].N
     
 if __name__ == "__main__":
+    colNames = vector_db_select(streams)['columns']
+    colValues = vector_db_select(streams)['values'].values()
+    dfnet = pd.DataFrame( data=colValues, columns=colNames )
+
     main()
 
