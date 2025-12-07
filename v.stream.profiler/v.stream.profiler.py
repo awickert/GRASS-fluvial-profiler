@@ -322,7 +322,7 @@ def main():
     colValues = vector_db_select(streams)['values'].values()
     warnings.warn('tostream is not generalized')
     dfnet = pd.DataFrame( data=colValues, columns=colNames )
-    tostream = dfnet['tostream']
+    tostream = dfnet['tostream'].astype(int)
     cats = dfnet['cat'].astype(int) # = "fromstream"
 
     # We can loop over this list to get the shape of the full river network.
