@@ -134,6 +134,7 @@ from grass import script as gscript
 from grass.pygrass.vector.geometry import Point
 import warnings
 from grass.script import array as garray
+from grass.raster import read_raster
 from scipy.interpolate import RegularGridInterpolator
 from grass.pygrass.gis import region
 from grass.pygrass.vector.basic import Bbox
@@ -455,8 +456,7 @@ def main():
         gscript.message("Elevation")
         _include_z = True
         # Load DEM
-        griddata = garray.array()
-        griddata.read(elevation)
+        griddata = garray.array(mapname=elevation)
         griddata = np.flipud(griddata)
         # Interpolate: nearest or linear?
         x = np.arange(reg.west + reg.ewres/2., reg.east, reg.ewres)
