@@ -395,9 +395,5 @@ for n in bfs_upward(G, 0):
         G.edges[parent,child]['s'] = G.nodes[child]['s'][0] + G.edges[parent,child]['s_upstream']
 
 if __name__ == "__main__":
-    colNames = vector_db_select(streams)['columns']
-    colValues = vector_db_select(streams)['values'].values()
-    dfnet = pd.DataFrame( data=colValues, columns=colNames )
-
     main()
 
