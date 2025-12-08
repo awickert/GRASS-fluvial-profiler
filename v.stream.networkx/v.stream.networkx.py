@@ -382,26 +382,17 @@ G.nodes[0]['A'] = [np.nan]
 G.nodes[0]['s'] = [0] # Total distance upstream of outlet
 
 # Overall downstream distance
-
-# Iterate in BFS through all: test and print
-for n in bfs_upward(G, 0):
-    print(n)
-    edges = G.in_edges(n, data=True)
-    for parent, child, data in edges:
-        print(parent, child)
-
 # Iterate in BFS through all, and update values.
 # "s" will just be total distance upstream of outlet.
 for n in bfs_upward(G, 0):
-    print(n)
+    #print(n)
     edges = G.in_edges(n)
     for parent, child in edges:
-        print(parent, child)
+        #print(parent, child)
         # Update node
         G.nodes[parent]['s'] = [G.nodes[child]['s'][0] + G.nodes[parent]['s_upstream'][0]]
         # Update edge
         G.edges[parent,child]['s'] = G.nodes[child]['s'][0] + G.edges[parent,child]['s_upstream']
-
 
 if __name__ == "__main__":
     colNames = vector_db_select(streams)['columns']
