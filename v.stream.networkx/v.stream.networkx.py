@@ -200,23 +200,13 @@ def values_from_raster( cats, rastname ):
     vt.close()
     return rast_lol
 
-"""
-# Test where it isn't working -- just needed to be re-run?
-_cat = 149
-print(_cat)
-coords = vt.cat(cat_id=_cat, vtype='lines')[0]
-rast_list = []
-for _c in coords:
-    x, y = _c.x, _c.y  # map coordinates
-    with RasterRow(rastname, mode="r") as rast:
-        _reg = region.Region()
-        rast_list.append(rast.get_value((x, y), _reg))
-rast_lol.append(rast_list)
-"""
-
 # Move node elevations from segments to nodes
 
 def drop_downstream_edge_array_values(G, attr_names):
+    """
+    Remove downstream-most entries in arrays, which duplicate those that are
+    or will be found on the nodes at tributary junctions.
+    """
     for parent, child, data in G.edges(data=True):
         if child == 0:
             # Leave downstream-most elevations on segments leaving the map.
@@ -243,6 +233,11 @@ def drop_downstream_edge_array_values(G, attr_names):
 
 def pull_first_from_edges_to_parents(G, attr_names):
     """
+    Assign the upstream-most entry in arrays of attributes held on the edges
+    to the upstream parent nodes, and then remove it from the edges.
+    
+    Therefore, nodes will share information at tributary junctions.  
+    
     For each directed edge parent -> child and each attribute in attr_names:
     - take the first element of the edge's list attribute
     - append it to a list attribute on the parent node
