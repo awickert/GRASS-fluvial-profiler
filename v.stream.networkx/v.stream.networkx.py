@@ -240,46 +240,6 @@ def bfs_upward(G, start):
         yield node
 
 
-
-#########################
-# PLOTTING. MOVE LATER. #
-#########################
-
-#plt.ion()
-plt.figure()
-for n in bfs_upward(G, 0):
-    edges = G.in_edges(n)
-    for parent, child in edges:
-        plt.plot( G.edges[parent,child]['s'], G.edges[parent,child]['z'], 'k-', linewidth=3, alpha=1 )
-        plt.plot( G.nodes[parent]['s'], G.nodes[parent]['z'], 'ko', alpha=1 )
-plt.xlabel('Upstream distance')
-plt.ylabel('Elevation') # hard-coded for now
-plt.show()
-
-
-
-
-# Now try with a farther upstream starting point
-
-# Iterate in BFS through all: test and print
-for n in bfs_upward(G, 1258):
-    print(n)
-    edges = G.in_edges(n, data=True)
-    for parent, child, data in edges:
-        print(parent, child)
-
-#plt.ion()
-plt.figure()
-for n in bfs_upward(G, 1258):
-    edges = G.in_edges(n)
-    for parent, child in edges:
-        plt.plot( G.edges[parent,child]['s'], G.edges[parent,child]['z'], 'k-', linewidth=3, alpha=1 )
-        plt.plot( G.nodes[parent]['s'], G.nodes[parent]['z'], 'ko', alpha=1 )
-plt.xlabel('Upstream distance')
-plt.ylabel('Elevation') # hard-coded for now
-plt.show()
-
-        
 ###############
 # MAIN MODULE #
 ###############
