@@ -93,6 +93,7 @@ from grass.pygrass.vector import Vector, VectorTopo
 from grass.pygrass.raster import RasterRow
 from grass.pygrass import utils
 from grass import script as gscript
+from grass.script import core as gcore
 from grass.pygrass.vector.geometry import Point
 import warnings
 from grass.script import array as garray
@@ -335,13 +336,17 @@ def main():
 
 # from setupDomain.py (modified)
 
+
 # Generate network structure with data on edges
 G = nx.from_pandas_edgelist(df_edges, source='cat', target='tostream', edge_key='cat', edge_attr=True, create_using=nx.DiGraph)
 
 # Move data from edges to nodes
 #G.add_nodes_from((n, dict(d)) for n, d in df_nodes.iterrows())
 attr_names = ['x', 'y', 's_upstream', 's_downstream', 'z', 'A']
+
+gcore.message("Moving upstream-most data points from streams to nodes above.")
 pull_first_from_edges_to_parents(G, attr_names)
+gcore.message("Processing started…")
 drop_downstream_edge_array_values(G, attr_names)
 
 # Drop x1 and y1 and x2 and y2 later !!!!!!!!!!!!!!! ######################
@@ -387,9 +392,9 @@ for n in bfs_upward(G, 0):
         if type(data.read(i+1)) is vector.geometry.Line:
             if data.read(i+1).cat in selected_cats:
                 coords.append(data.read(i+1).to_array())
-                gscript.core.percent(_i, len(selected_cats), 100./len(selected_cats))
+                gcore.percent(_i, len(selected_cats), 100./len(selected_cats))
                 _i += 1
-    gscript.core.percent(1, 1, 1)
+    gcore.percent(1, 1, 1)
     coords = np.vstack(np.array(coords))
     
     _dx = np.diff(coords[:,0])
