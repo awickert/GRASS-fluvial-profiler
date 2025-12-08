@@ -273,44 +273,7 @@ def pull_first_from_edges_to_parents(G, attr_names):
                 # e.g. numpy array: create a sliced copy
                 data[attr] = arr[1:]
 
-"""
-# Test
-parent = 1258
-child = 1259
-data = G.get_edge_data(1258, 1259)
 
-# Test again
-
-parent = 149
-child = 150
-
-#df_edges.loc[ df_edges['cat'] == 149, 'z' ] = values_from_raster( [parent], 'dem' )[0]
-#df_edges.loc[parent-1]['A'] = values_from_raster( [parent], 'accumulation' )
-
-df_edges.at[ parent-1, 'z' ] = values_from_raster( [parent], 'dem' )[0]
-df_edges.at[ parent-1, 'A' ] = values_from_raster( [parent], 'accumulation' )[0]
-
-data = G.get_edge_data(parent, child)
-
-# Check out upstream node
-G.nodes[parent]
-# Check out link (edge): empty as it should be!
-G.edges[parent, child]
-
-attr = 'x'
-arr = data[attr]
-
-first = arr[0]
-
-# ---- move to parent node ----
-# store as a list on the parent node (accumulate values)
-node_attr = G.nodes[parent].get(attr, [])
-# copy if it's not a list yet
-if not isinstance(node_attr, list):
-    node_attr = [node_attr]
-node_attr.append(first)
-G.nodes[parent][attr] = node_attr
-"""
 
 
 ### ALL THIS STUFF PURE COPY/PASTE
@@ -372,80 +335,6 @@ drop_downstream_edge_array_values(G, attr_names)
 # Drop x1 and y1 and x2 and y2 later !!!!!!!!!!!!!!! ######################
 
 
-"""
-# Now, to see if it worked: try to plot!
-
-# To do this, assume we will have an acyclic binary tree and walk up it
-# We start by defining the number of the mouth node; this could later
-# set externally
-mouth_node = 1258
-s = nx.bfs_tree(G, mouth_node, reverse=True)
-# We start by placing distance = 0 at the mouth node
-# !!!!!!!!!!!!! THIS IS WHERE I CREATED THE INITIAL PROBLEM !!!!!!!!!!!
-G.nodes[mouth_node]['s'] = 0
-
-# Find upstream and downstream nodes and links
-children = list(G.successors(mouth_node)) # Downstream
-parents = list(G.predecessors(mouth_node)) # Upstream
-"""
-
-"""
-# This is where our 1258 problem was!
-# And our offsets
-mouth_node = 0
-# Loop to get all upstream distances
-for node in s.nodes:
-    # First, update the distance upstream from the node
-    if node == mouth_node:
-        # I never like having a single-case "if". seems like a big waste.
-        # Ways around this?
-        G.nodes[node]['s_upstream'] = 0. # MAKE THIS A LIST OF 1 ITEM
-        # Could also check if out_edges is nonexistent...
-    else:
-        # Otherwise, look at the next link downstream
-        edges = G.out_edges(node)
-        if len(edges) != 1:
-            # Declare an error if we don't have exactly 1 downstream edge
-            # This is built for only directed, convergent, acyclic graphs
-            sys.exit() # error
-        else:
-            edge = next(iter(edges))
-        # First item = upstream
-        # Try first on edge
-        if len( G.edges[edge]['x'] ) > 0:
-            _dx = G.nodes[node]['x'] - G.edges[edge]['x'][0]
-            _dy = G.nodes[node]['y'] - G.edges[edge]['y'][0]
-            ds = ( _dx**2 + _dy**2 )**.5
-            # Update the node
-            G.nodes[node]['s_upstream'] = ds + G.edges[edge]['s_upstream'][0]
-        # If no items on edge, then it just connects two nodes with no cell
-        # between them (i.e., tributary junctions on subsequent cells)
-        else:
-            _dx = G.nodes[node]['x'] - G.nodes[edge[-1]]['x'][0]
-            _dy = G.nodes[node]['y'] - G.nodes[edge[-1]]['y'][0]
-            ds = ( _dx**2 + _dy**2 )**.5
-            # Update the node
-            G.nodes[node]['s_upstream'] = ds + G.nodes[edge[-1]]['s_upstream'][0]
-    # Then walk upstream to the edges touching this node and iterate
-    # over them.
-    # For a tributary network, this should be 1 for the mouth node, 2
-    # for all middle nodes, and 0 for the upstream-most-end nodes
-    edges_to_node = G.in_edges(node)
-    for edge in edges_to_node:
-        # Find distances upstream from next downstream node
-        # I have set the convention that x,y,z are arranged
-        # upstream to downstream
-        # MODIFICATION: Nodes are already 1-element lists
-        _x = np.hstack(( G.edges[edge]['x'], G.nodes[node]['x'] )) 
-        _y = np.hstack(( G.edges[edge]['y'], G.nodes[node]['y'] )) 
-        # Continue without assuming that we've already calculated dx, dy, ds
-        ds = ( np.diff(_x)**2 + np.diff(_y)**2 )**.5
-        # Increasing (positive) distance with distance from the river mouth 
-        G.edges[edge]['s_upstream']= np.cumsum(ds[::-1])[::-1] + G.nodes[node]['s_upstream']
-"""
-    
-
-
 # Define all values as nan or 0 for offmap
 G.nodes[0]['x'] = [np.nan]
 G.nodes[0]['y'] = [np.nan]
@@ -460,15 +349,6 @@ def bfs_upward(G, start):
     R = G.reverse(copy=False)  # just a view, no data duplication
     for node in nx.bfs_tree(R, start):
         yield node
-"""
-for n in bfs_upward(G, 0):
-    print(n)
-    
-
-for i in range(len(edges)):
-        edge = next(iter( edges ))
-        print(edge)
-"""
 
 # Iterate in BFS through all: test and print
 for n in bfs_upward(G, 0):
@@ -489,18 +369,7 @@ for n in bfs_upward(G, 0):
         # Update edge
         G.edges[parent,child]['s'] = G.nodes[child]['s'][0] + G.edges[parent,child]['s_upstream']
 
-"""
-# It's 1258! Probably just not a list because I was using it as an example. 
-# ABOVE: Because I had it as the mouth_node in the now-commented section.
-# This code section is shorter and better.
-        try:
-            G.nodes[parent]['s'] = [G.nodes[child]['s'][0] + G.nodes[parent]['s_upstream'][0]]
-        except:
-            # Find and fix the reason this is a float later
-            # Probably because of these two-unit tribs
-            # THIS WILL CAUSE PROBLEMS: FIX FIX FIX !!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!
-            G.nodes[parent]['s'] = [np.nan]#[G.nodes[child]['s'][0] + G.nodes[parent]['s_upstream']]
-"""
+
 
 #plt.ion()
 plt.figure()
