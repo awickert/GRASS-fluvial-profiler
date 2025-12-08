@@ -348,16 +348,31 @@ if elevation is not None:
     attr_names += ['z']
 if accumulation is not None:
     attr_names += ['A']
-
+# Add something eventually to prevent this from being called twice?
+# Perhaps after I combine these functions?
 gcore.message("Moving upstream-most data points from streams to nodes above.")
 pull_first_from_edges_to_parents(G, attr_names)
-gcore.message("Processing started…")
+gcore.message("Dropping downstream-most stream points: duplicate new node values.")
 drop_downstream_edge_array_values(G, attr_names)
 
-# Drop x1 and y1 and x2 and y2 later !!!!!!!!!!!!!!! ######################
+# At this point, the following are redundant with on-node data:
+# x1, y1, x2, y2
+# Therefore, we will remove them from the attribute dictionaries
+attrs_to_remove = {"x1", "y1", "x2", "y2"}   # use a set for O(1) lookup
+for _, _, data in G.edges(data=True):
+    for k in attrs_to_remove:
+        data.pop(k, None)   # safe: does nothing if missing
 
-
+# The offmap node, 0, is special.
 # Define all values as nan or 0 for offmap
+# x, y: Could be multiple locations; is beyond domain
+# s_upstream: Nothing downstream of this, so 0 by default; 
+#             will start overall distances (s) at 0, so helpful
+# s_downstream: Uppermost cell for anything downstream; these all are 0
+#               in local coordinates, but here, is nan because there is
+#               no downstream river
+# z, A: Beyond domain
+# s: 0 because this is the total distance upstream of the outlet(s)
 G.nodes[0]['x'] = [np.nan]
 G.nodes[0]['y'] = [np.nan]
 G.nodes[0]['s_upstream'] = [0]
