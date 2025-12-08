@@ -273,7 +273,16 @@ def pull_first_from_edges_to_parents(G, attr_names):
                 # e.g. numpy array: create a sliced copy
                 data[attr] = arr[1:]
 
-
+def bfs_upward(G, start):
+    """
+    Breadth-first search going upwards.
+    Use this to update overall distance upstream from all outlets
+    in a single sweep through the network, relying on those network components
+    closer to the outlet to be updated first
+    """
+    R = G.reverse(copy=False)  # just a view, no data duplication
+    for node in nx.bfs_tree(R, start):
+        yield node
 
 
 ### ALL THIS STUFF PURE COPY/PASTE
@@ -345,10 +354,6 @@ G.nodes[0]['A'] = [np.nan]
 G.nodes[0]['s'] = [0] # Total distance upstream of outlet
 
 # Overall downstream distance
-def bfs_upward(G, start):
-    R = G.reverse(copy=False)  # just a view, no data duplication
-    for node in nx.bfs_tree(R, start):
-        yield node
 
 # Iterate in BFS through all: test and print
 for n in bfs_upward(G, 0):
