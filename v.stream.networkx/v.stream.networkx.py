@@ -290,8 +290,6 @@ def main():
     # Attributes of streams
     colNames = vector_db_select(streams)['columns']
     colValues = vector_db_select(streams)['values'].values()
-    colNames = vector_db_select(streams)['columns']
-    colValues = vector_db_select(streams)['values'].values()
     df_edges = pd.DataFrame( data=colValues, columns=colNames )
     cats = list( df_edges['cat'].astype(int) ) # = "fromstream"
     
