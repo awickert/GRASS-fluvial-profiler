@@ -328,11 +328,13 @@ def main():
     df_edges['y'] = _y
 
     # Get all attributes
-    
     gcore.message("Extracting raster data along drainage network.")
-    df_edges['z'] = values_from_raster( cats, 'dem' )
-    df_edges['A'] = values_from_raster( cats, 'accumulation' )
+    if elevation is not None:
+        df_edges['z'] = values_from_raster( cats, elevation )
+    if accumulation is not None:
+        df_edges['A'] = values_from_raster( cats, accumulation )
 
+    # Convert data types from (likely) string to integer
     df_edges['cat'] = df_edges['cat'].astype(int)
     df_edges['tostream'] = df_edges['tostream'].astype(int)
 
