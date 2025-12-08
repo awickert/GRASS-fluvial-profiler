@@ -75,11 +75,12 @@
 # temporary patch
 import sys
 sys.path.insert(0, '/home/awickert/dataanalysis/GRASS-fluvial-profiler/v.stream.profiler/')
-import RiverNetwork as rn
+#import RiverNetwork as rn # Now using NetworkX instead of my custom network code
 # PYTHON
 import numpy as np
 import pandas as pd
 from matplotlib import pyplot as plt
+import networkx as nx
 import sys
 # GRASS
 from grass.pygrass.modules.shortcuts import general as g
@@ -333,7 +334,6 @@ def main():
 
 
 # from setupDomain.py (modified)
-import networkx as nx
 
 # Generate network structure with data on edges
 G = nx.from_pandas_edgelist(df_edges, source='cat', target='tostream', edge_key='cat', edge_attr=True, create_using=nx.DiGraph)
@@ -381,15 +381,6 @@ for n in bfs_upward(G, 0):
 
 
 
-    # !!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!
-    # UPDATE !!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!
-    """
-    ##### FIND RIGHT SPOT TO ADD CLASS STUFF HERE/BELOW ####
-    
-    # Extract x points in network
-    data = vector.VectorTopo(streams) # Create a VectorTopo object
-    data.open('r') # Open this object for reading
-    
     coords = []
     _i = 0
     for i in range(len(data)):
@@ -405,9 +396,6 @@ for n in bfs_upward(G, 0):
     _dy = np.diff(coords[:,1])
     x_downstream_0 = np.hstack((0, np.cumsum((_dx**2 + _dy**2)**.5)))
     x_downstream = x_downstream_0.copy()
-    
-    data.close()
-    """
 
 if __name__ == "__main__":
     colNames = vector_db_select(streams)['columns']
