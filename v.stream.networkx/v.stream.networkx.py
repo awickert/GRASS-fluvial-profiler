@@ -339,15 +339,15 @@ def main():
     df_edges['tostream'] = df_edges['tostream'].astype(int)
 
 
-# from setupDomain.py (modified)
-
-
 # Generate network structure with data on edges
 G = nx.from_pandas_edgelist(df_edges, source='cat', target='tostream', edge_key='cat', edge_attr=True, create_using=nx.DiGraph)
 
 # Move data from edges to nodes
-#G.add_nodes_from((n, dict(d)) for n, d in df_nodes.iterrows())
-attr_names = ['x', 'y', 's_upstream', 's_downstream', 'z', 'A']
+attr_names = ['x', 'y', 's_upstream', 's_downstream']
+if elevation is not None:
+    attr_names += ['z']
+if accumulation is not None:
+    attr_names += ['A']
 
 gcore.message("Moving upstream-most data points from streams to nodes above.")
 pull_first_from_edges_to_parents(G, attr_names)
