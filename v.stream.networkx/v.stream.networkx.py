@@ -138,8 +138,10 @@ def values_from_raster( cats, rastname ):
     vt = vector.VectorTopo(streams) # Create a VectorTopo object
     vt.open('r') # Open this object for reading
     rast_lol = []
+    _i = 0
     for _cat in cats:
-        print(_cat)
+        gcore.percent(_i, len(cats), 1)
+        #print(_cat)
         coords = vt.cat(cat_id=_cat, vtype='lines')[0]
         rast_list = []
         for _c in coords:
@@ -148,6 +150,8 @@ def values_from_raster( cats, rastname ):
                 _reg = region.Region()
                 rast_list.append(rast.get_value((x, y), _reg))
         rast_lol.append(rast_list)
+        _i += 1
+    gcore.percent(1, 1, 1)
     vt.close()
     return rast_lol
 
@@ -303,7 +307,6 @@ def main():
     _su = [] # upstream-directed along-stream distance
     _sd = [] # downstream-directed along-stream distance
     for _cat in cats:
-        print(_cat)
         # Extract and calculate E, N, and along-stream distance
         coords = vt.cat(cat_id=_cat, vtype='lines')[0]
         EN = coords.to_array()
@@ -325,6 +328,8 @@ def main():
     df_edges['y'] = _y
 
     # Get all attributes
+    
+    gcore.message("Extracting raster data along drainage network.")
     df_edges['z'] = values_from_raster( cats, 'dem' )
     df_edges['A'] = values_from_raster( cats, 'accumulation' )
 
@@ -380,25 +385,6 @@ for n in bfs_upward(G, 0):
         # Update edge
         G.edges[parent,child]['s'] = G.nodes[child]['s'][0] + G.edges[parent,child]['s_upstream']
 
-
-
-
-
-    coords = []
-    _i = 0
-    for i in range(len(data)):
-        if type(data.read(i+1)) is vector.geometry.Line:
-            if data.read(i+1).cat in selected_cats:
-                coords.append(data.read(i+1).to_array())
-                gcore.percent(_i, len(selected_cats), 100./len(selected_cats))
-                _i += 1
-    gcore.percent(1, 1, 1)
-    coords = np.vstack(np.array(coords))
-    
-    _dx = np.diff(coords[:,0])
-    _dy = np.diff(coords[:,1])
-    x_downstream_0 = np.hstack((0, np.cumsum((_dx**2 + _dy**2)**.5)))
-    x_downstream = x_downstream_0.copy()
 
 if __name__ == "__main__":
     colNames = vector_db_select(streams)['columns']
