@@ -299,60 +299,60 @@ def main():
     df_edges['tostream'] = df_edges['tostream'].astype(int)
 
 
-# Generate network structure with data on edges
-G = nx.from_pandas_edgelist(df_edges, source='cat', target='tostream', edge_key='cat', edge_attr=True, create_using=nx.DiGraph)
+    # Generate network structure with data on edges
+    G = nx.from_pandas_edgelist(df_edges, source='cat', target='tostream', edge_key='cat', edge_attr=True, create_using=nx.DiGraph)
 
-# Move data from edges to nodes
-attr_names = ['x', 'y', 's_upstream', 's_downstream']
-if elevation is not None:
-    attr_names += ['z']
-if accumulation is not None:
-    attr_names += ['A']
-# Add something eventually to prevent this from being called twice?
-# Perhaps after I combine these functions?
-gcore.message("Moving upstream-most data points from streams to nodes above.")
-pull_first_from_edges_to_parents(G, attr_names)
-gcore.message("Dropping downstream-most stream points: duplicate new node values.")
-drop_downstream_edge_array_values(G, attr_names)
+    # Move data from edges to nodes
+    attr_names = ['x', 'y', 's_upstream', 's_downstream']
+    if elevation is not None:
+        attr_names += ['z']
+    if accumulation is not None:
+        attr_names += ['A']
+    # Add something eventually to prevent this from being called twice?
+    # Perhaps after I combine these functions?
+    gcore.message("Moving upstream-most data points from streams to nodes above.")
+    pull_first_from_edges_to_parents(G, attr_names)
+    gcore.message("Dropping downstream-most stream points: duplicate new node values.")
+    drop_downstream_edge_array_values(G, attr_names)
 
-# At this point, the following are redundant with on-node data:
-# x1, y1, x2, y2
-# Therefore, we will remove them from the attribute dictionaries
-attrs_to_remove = {"x1", "y1", "x2", "y2"}   # use a set for O(1) lookup
-for _, _, data in G.edges(data=True):
-    for k in attrs_to_remove:
-        data.pop(k, None)   # safe: does nothing if missing
+    # At this point, the following are redundant with on-node data:
+    # x1, y1, x2, y2
+    # Therefore, we will remove them from the attribute dictionaries
+    attrs_to_remove = {"x1", "y1", "x2", "y2"}   # use a set for O(1) lookup
+    for _, _, data in G.edges(data=True):
+        for k in attrs_to_remove:
+            data.pop(k, None)   # safe: does nothing if missing
 
-# The offmap node, 0, is special.
-# Define all values as nan or 0 for offmap
-# x, y: Could be multiple locations; is beyond domain
-# s_upstream: Nothing downstream of this, so 0 by default; 
-#             will start overall distances (s) at 0, so helpful
-# s_downstream: Uppermost cell for anything downstream; these all are 0
-#               in local coordinates, but here, is nan because there is
-#               no downstream river
-# z, A: Beyond domain
-# s: 0 because this is the total distance upstream of the outlet(s)
-G.nodes[0]['x'] = [np.nan]
-G.nodes[0]['y'] = [np.nan]
-G.nodes[0]['s_upstream'] = [0]
-G.nodes[0]['s_downstream'] = [np.nan]
-G.nodes[0]['z'] = [np.nan]
-G.nodes[0]['A'] = [np.nan]
-G.nodes[0]['s'] = [0] # Total distance upstream of outlet
+    # The offmap node, 0, is special.
+    # Define all values as nan or 0 for offmap
+    # x, y: Could be multiple locations; is beyond domain
+    # s_upstream: Nothing downstream of this, so 0 by default; 
+    #             will start overall distances (s) at 0, so helpful
+    # s_downstream: Uppermost cell for anything downstream; these all are 0
+    #               in local coordinates, but here, is nan because there is
+    #               no downstream river
+    # z, A: Beyond domain
+    # s: 0 because this is the total distance upstream of the outlet(s)
+    G.nodes[0]['x'] = [np.nan]
+    G.nodes[0]['y'] = [np.nan]
+    G.nodes[0]['s_upstream'] = [0]
+    G.nodes[0]['s_downstream'] = [np.nan]
+    G.nodes[0]['z'] = [np.nan]
+    G.nodes[0]['A'] = [np.nan]
+    G.nodes[0]['s'] = [0] # Total distance upstream of outlet
 
-# Overall downstream distance
-# Iterate in BFS through all, and update values.
-# "s" will just be total distance upstream of outlet.
-for n in bfs_upward(G, 0):
-    #print(n)
-    edges = G.in_edges(n)
-    for parent, child in edges:
-        #print(parent, child)
-        # Update node
-        G.nodes[parent]['s'] = [G.nodes[child]['s'][0] + G.nodes[parent]['s_upstream'][0]]
-        # Update edge
-        G.edges[parent,child]['s'] = G.nodes[child]['s'][0] + G.edges[parent,child]['s_upstream']
+    # Overall downstream distance
+    # Iterate in BFS through all, and update values.
+    # "s" will just be total distance upstream of outlet.
+    for n in bfs_upward(G, 0):
+        #print(n)
+        edges = G.in_edges(n)
+        for parent, child in edges:
+            #print(parent, child)
+            # Update node
+            G.nodes[parent]['s'] = [G.nodes[child]['s'][0] + G.nodes[parent]['s_upstream'][0]]
+            # Update edge
+            G.edges[parent,child]['s'] = G.nodes[child]['s'][0] + G.edges[parent,child]['s_upstream']
 
 if __name__ == "__main__":
     main()
