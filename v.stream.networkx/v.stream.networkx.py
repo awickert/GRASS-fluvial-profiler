@@ -1,7 +1,7 @@
 #!/usr/bin/env python
 ############################################################################
 #
-# MODULE:       v.stream.profiler
+# MODULE:       v.stream.networkx
 #
 # AUTHOR(S):    Andrew Wickert
 #
@@ -19,19 +19,13 @@
 #      -  uses inputs from r.stream.extract
  
 # More information
-# Started 14 October 2016
+# Started 14 October 2016, 07 December 2025
 #%module
-#% description: Build a linked stream network: each link knows its downstream link
+#% description: Create a NetworkX river-network object with cumulative downstream distances
 #% keyword: vector
 #% keyword: stream network
 #% keyword: hydrology
 #% keyword: geomorphology
-#%end
-#%option
-#%  key: cat
-#%  label: Starting line segment category
-#%  required: yes
-#%  guidependency: layer,column
 #%end
 #%option G_OPT_V_INPUT
 #%  key: streams
@@ -43,14 +37,6 @@
 #%  label: Vector output stream
 #%  required: no
 #%end
-#%option
-#%  key: direction
-#%  type: string
-#%  label: Which directon to march: up or down
-#%  options: upstream,downstream
-#%  answer: downstream
-#%  required: no
-#%end
 #%option G_OPT_R_INPUT
 #%  key: elevation
 #%  label: Topography (DEM)
@@ -59,11 +45,6 @@
 #%option G_OPT_R_INPUT
 #%  key: accumulation
 #%  label: Flow accumulation raster
-#%  required: no
-#%end
-#%option G_OPT_R_INPUT
-#%  key: slope
-#%  label: Map of slope created by r.slope.area
 #%  required: no
 #%end
 #%option
@@ -81,28 +62,9 @@
 #%  required: no
 #%end
 #%option
-#%  key: dx_target
-#%  type: double
-#%  label: Target distance between output stream points [map units]
-#%  required: no
-#%end
-#%option
-#%  key: window
-#%  label: Averaging distance [map units]
-#%  required: no
-#%end
-#%option
-#%  key: plots
-#%  type: string
-#%  label: Plots to generate
-#%  options: LongProfile,SlopeAccum,SlopeDistance,AccumDistance
-#%  required: no
-#%  multiple: yes
-#%end
-#%option
 #%  key: outfile
 #%  type: string
-#%  label: output file
+#%  label: Output file for NetworkX / Pandas
 #%  required: no
 #%end
 
@@ -148,24 +110,12 @@ _cat = int(options['cat'])
 overwrite_flag = gscript.overwrite()
 elevation = options['elevation']
 if elevation == '': elevation = None    
-slope = options['slope']
-if slope == '': slope = None    
 accumulation = options['accumulation']
 if accumulation == '': accumulation = None
-direction = options['direction']
-if direction == '': direction = None
 streams = options['streams']
 if streams == '': streams = None
 outstream = options['outstream']
 if outstream == '': outstream = None
-try:
-    window = float(options['window'])
-except:
-    window = None
-try:
-    dx_target = float(options['dx_target'])
-except:
-    dx_target = None
 accum_mult = float(options['accum_mult'])
 if options['units'] == 'm2':
     accum_label = 'Drainage area [m$^2$]'
@@ -177,7 +127,6 @@ elif options['units'] == 'cfs':
     accum_label = 'Water discharge [cfs]'
 else:
     accum_label = 'Flow accumulation [$-$]'
-plots = options['plots'].split(',')
 
 ###################
 # UTILITY MODULES #
@@ -336,60 +285,102 @@ def main():
     means that the river exits the map.
     """
 
-    # Parsing inside function
-    _cat = int(options['cat'])
-    overwrite_flag = gscript.overwrite()
-    elevation = options['elevation']
-    if elevation == '': elevation = None    
-    slope = options['slope']
-    if slope == '': slope = None    
-    accumulation = options['accumulation']
-    if accumulation == '': accumulation = None
-    direction = options['direction']
-    if direction == '': direction = None
-    streams = options['streams']
-    if streams == '': streams = None
-    outstream = options['outstream']
-    if outstream == '': outstream = None
-    outfile = options['outfile']
-    if outfile == '': outfile = None
-    # !!!!!!!!!!!!!!!!!
-    # ADD SWITCHES TO INDIVIDUALLY SMOOTH SLOPE, ACCUM, ETC.
-    # !!!!!!!!!!!!!!!!!
-    try:
-        window = float(options['window'])
-    except:
-        window = None
-    try:
-        dx_target = float(options['dx_target'])
-    except:
-        dx_target = None
-    accum_mult = float(options['accum_mult'])
-    if options['units'] == 'm2':
-        accum_label = 'Drainage area [m$^2$]'
-    elif options['units'] == 'km2':
-        accum_label = 'Drainage area [km$^2$]'
-    elif options['units'] == 'cumecs':
-        accum_label = 'Water discharge [m$^3$ s$^{-1}$]'
-    elif options['units'] == 'cfs':
-        accum_label = 'Water discharge [cfs]'
-    else:
-        accum_label = 'Flow accumulation [$-$]'
-    plots = options['plots'].split(',')
-
     # Attributes of streams
     colNames = vector_db_select(streams)['columns']
     colValues = vector_db_select(streams)['values'].values()
-    warnings.warn('tostream is not generalized')
-    dfnet = pd.DataFrame( data=colValues, columns=colNames )
-    tostream = dfnet['tostream'].astype(int)
-    cats = dfnet['cat'].astype(int) # = "fromstream"
-
-    # Get all cats in network
-    data = vector.VectorTopo(streams) # Create a VectorTopo object
-    data.open('r') # Open this object for reading
-
+    colNames = vector_db_select(streams)['columns']
+    colValues = vector_db_select(streams)['values'].values()
+    df_edges = pd.DataFrame( data=colValues, columns=colNames )
+    cats = list( df_edges['cat'].astype(int) ) # = "fromstream"
     
+    # Vector topology
+    vt = vector.VectorTopo(streams) # Create a VectorTopo object
+    vt.open('r') # Open this object for reading
+
+    # Add distance and position information
+    _x = [] # easting
+    _y = [] # northing
+    _su = [] # upstream-directed along-stream distance
+    _sd = [] # downstream-directed along-stream distance
+    for _cat in cats:
+        print(_cat)
+        # Extract and calculate E, N, and along-stream distance
+        coords = vt.cat(cat_id=_cat, vtype='lines')[0]
+        EN = coords.to_array()
+        _diffs = np.diff(EN, axis=0)
+        ds_downstream = ( (_diffs**2).sum(axis=1) )**.5
+        s_downstream = np.concatenate( [[0], np.cumsum(ds_downstream)] )
+        s_upstream = s_downstream[-1] - s_downstream
+        # Insert results into DataFrame
+        _x.append(EN[:,0])
+        _y.append(EN[:,1])
+        _su.append(s_upstream)
+        _sd.append(s_downstream)
+
+    vt.close()
+
+    df_edges['s_upstream'] = _su
+    df_edges['s_downstream'] = _sd
+    df_edges['x'] = _x
+    df_edges['y'] = _y
+
+    # Get all attributes
+    df_edges['z'] = values_from_raster( cats, 'dem' )
+    df_edges['A'] = values_from_raster( cats, 'accumulation' )
+
+    df_edges['cat'] = df_edges['cat'].astype(int)
+    df_edges['tostream'] = df_edges['tostream'].astype(int)
+
+
+# from setupDomain.py (modified)
+import networkx as nx
+
+# Generate network structure with data on edges
+G = nx.from_pandas_edgelist(df_edges, source='cat', target='tostream', edge_key='cat', edge_attr=True, create_using=nx.DiGraph)
+
+# Move data from edges to nodes
+#G.add_nodes_from((n, dict(d)) for n, d in df_nodes.iterrows())
+attr_names = ['x', 'y', 's_upstream', 's_downstream', 'z', 'A']
+pull_first_from_edges_to_parents(G, attr_names)
+drop_downstream_edge_array_values(G, attr_names)
+
+# Drop x1 and y1 and x2 and y2 later !!!!!!!!!!!!!!! ######################
+
+
+# Define all values as nan or 0 for offmap
+G.nodes[0]['x'] = [np.nan]
+G.nodes[0]['y'] = [np.nan]
+G.nodes[0]['s_upstream'] = [0]
+G.nodes[0]['s_downstream'] = [np.nan]
+G.nodes[0]['z'] = [np.nan]
+G.nodes[0]['A'] = [np.nan]
+G.nodes[0]['s'] = [0] # Total distance upstream of outlet
+
+# Overall downstream distance
+
+# Iterate in BFS through all: test and print
+for n in bfs_upward(G, 0):
+    print(n)
+    edges = G.in_edges(n, data=True)
+    for parent, child, data in edges:
+        print(parent, child)
+
+# Iterate in BFS through all, and update values.
+# "s" will just be total distance upstream of outlet.
+for n in bfs_upward(G, 0):
+    print(n)
+    edges = G.in_edges(n)
+    for parent, child in edges:
+        print(parent, child)
+        # Update node
+        G.nodes[parent]['s'] = [G.nodes[child]['s'][0] + G.nodes[parent]['s_upstream'][0]]
+        # Update edge
+        G.edges[parent,child]['s'] = G.nodes[child]['s'][0] + G.edges[parent,child]['s_upstream']
+
+
+
+
+
     # !!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!
     # UPDATE !!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!
     """
