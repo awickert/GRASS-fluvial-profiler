@@ -285,96 +285,10 @@ def bfs_upward(G, start):
         yield node
 
 
-### ALL THIS STUFF PURE COPY/PASTE
-colNames = vector_db_select(streams)['columns']
-colValues = vector_db_select(streams)['values'].values()
-df_edges = pd.DataFrame( data=colValues, columns=colNames )
-cats = list( df_edges['cat'].astype(int) ) # = "fromstream"
 
-vt = vector.VectorTopo(streams) # Create a VectorTopo object
-vt.open('r') # Open this object for reading
-
-_x = []
-_y = []
-_su = []
-_sd = []
-for _cat in cats:
-    print(_cat)
-    # Extract and calculate E, N, and along-stream distance
-    coords = vt.cat(cat_id=_cat, vtype='lines')[0]
-    EN = coords.to_array()
-    _diffs = np.diff(EN, axis=0)
-    ds_downstream = ( (_diffs**2).sum(axis=1) )**.5
-    s_downstream = np.concatenate( [[0], np.cumsum(ds_downstream)] )
-    s_upstream = s_downstream[-1] - s_downstream
-    # Insert results into DataFrame
-    _x.append(EN[:,0])
-    _y.append(EN[:,1])
-    _su.append(s_upstream)
-    _sd.append(s_downstream)
-
-vt.close()
-
-df_edges['s_upstream'] = _su
-df_edges['s_downstream'] = _sd
-df_edges['x'] = _x
-df_edges['y'] = _y
-### END
-
-# Get all attributes
-df_edges['z'] = values_from_raster( cats, 'dem' )
-df_edges['A'] = values_from_raster( cats, 'accumulation' )
-
-df_edges['cat'] = df_edges['cat'].astype(int)
-df_edges['tostream'] = df_edges['tostream'].astype(int)
-
-
-# from setupDomain.py (modified)
-import networkx as nx
-
-# Generate network structure with data on edges
-G = nx.from_pandas_edgelist(df_edges, source='cat', target='tostream', edge_key='cat', edge_attr=True, create_using=nx.DiGraph)
-
-# Move data from edges to nodes
-#G.add_nodes_from((n, dict(d)) for n, d in df_nodes.iterrows())
-attr_names = ['x', 'y', 's_upstream', 's_downstream', 'z', 'A']
-pull_first_from_edges_to_parents(G, attr_names)
-drop_downstream_edge_array_values(G, attr_names)
-
-# Drop x1 and y1 and x2 and y2 later !!!!!!!!!!!!!!! ######################
-
-
-# Define all values as nan or 0 for offmap
-G.nodes[0]['x'] = [np.nan]
-G.nodes[0]['y'] = [np.nan]
-G.nodes[0]['s_upstream'] = [0]
-G.nodes[0]['s_downstream'] = [np.nan]
-G.nodes[0]['z'] = [np.nan]
-G.nodes[0]['A'] = [np.nan]
-G.nodes[0]['s'] = [0] # Total distance upstream of outlet
-
-# Overall downstream distance
-
-# Iterate in BFS through all: test and print
-for n in bfs_upward(G, 0):
-    print(n)
-    edges = G.in_edges(n, data=True)
-    for parent, child, data in edges:
-        print(parent, child)
-
-# Iterate in BFS through all, and update values.
-# "s" will just be total distance upstream of outlet.
-for n in bfs_upward(G, 0):
-    print(n)
-    edges = G.in_edges(n)
-    for parent, child in edges:
-        print(parent, child)
-        # Update node
-        G.nodes[parent]['s'] = [G.nodes[child]['s'][0] + G.nodes[parent]['s_upstream'][0]]
-        # Update edge
-        G.edges[parent,child]['s'] = G.nodes[child]['s'][0] + G.edges[parent,child]['s_upstream']
-
-
+#########################
+# PLOTTING. MOVE LATER. #
+#########################
 
 #plt.ion()
 plt.figure()
