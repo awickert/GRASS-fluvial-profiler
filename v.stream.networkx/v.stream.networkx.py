@@ -105,7 +105,6 @@ from grass.pygrass.vector.basic import Bbox
 
 options, flags = gscript.parser()
 
-_cat = int(options['cat'])
 overwrite_flag = gscript.overwrite()
 elevation = options['elevation']
 if elevation == '': elevation = None    
