@@ -32,11 +32,6 @@
 #%  label: Vector input of stream network created by r.stream.extract
 #%  required: yes
 #%end
-#%option G_OPT_V_OUTPUT
-#%  key: outjson
-#%  label: Vector output stream JSON
-#%  required: no
-#%end
 #%option G_OPT_R_INPUT
 #%  key: elevation
 #%  label: Topography (DEM)
@@ -63,8 +58,7 @@
 #%end
 #%option
 #%  key: outjson
-#%  type: string
-#%  label: Output file for NetworkX / Pandas
+#%  label: Vector output stream JSON
 #%  required: no
 #%end
 
