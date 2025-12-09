@@ -94,7 +94,6 @@ from grass.script import core as gcore
 from grass.pygrass.vector.geometry import Point
 import warnings
 from grass.script import array as garray
-from grass.raster import read_raster
 from scipy.interpolate import RegularGridInterpolator
 from grass.pygrass.gis import region
 from grass.pygrass.vector.basic import Bbox
