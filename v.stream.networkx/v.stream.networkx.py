@@ -33,8 +33,8 @@
 #%  required: yes
 #%end
 #%option G_OPT_V_OUTPUT
-#%  key: outstream
-#%  label: Vector output stream
+#%  key: outjson
+#%  label: Vector output stream JSON
 #%  required: no
 #%end
 #%option G_OPT_R_INPUT
@@ -62,7 +62,7 @@
 #%  required: no
 #%end
 #%option
-#%  key: outfile
+#%  key: outjson
 #%  type: string
 #%  label: Output file for NetworkX / Pandas
 #%  required: no
@@ -77,11 +77,14 @@ import sys
 sys.path.insert(0, '/home/awickert/dataanalysis/GRASS-fluvial-profiler/v.stream.profiler/')
 #import RiverNetwork as rn # Now using NetworkX instead of my custom network code
 # PYTHON
+import sys
 import numpy as np
 import pandas as pd
 from matplotlib import pyplot as plt
 import networkx as nx
-import sys
+from networkx.readwrite import json_graph
+import json
+import copy
 # GRASS
 from grass.pygrass.modules.shortcuts import general as g
 from grass.pygrass.modules.shortcuts import raster as r
@@ -116,8 +119,8 @@ accumulation = options['accumulation']
 if accumulation == '': accumulation = None
 streams = options['streams']
 if streams == '': streams = None
-outstream = options['outstream']
-if outstream == '': outstream = None
+outjson = options['outjson']
+if outjson == '': outjson = None
 accum_mult = float(options['accum_mult'])
 if options['units'] == 'm2':
     accum_label = 'Drainage area [m$^2$]'
@@ -239,6 +242,64 @@ def bfs_upward(G, start):
     for node in nx.bfs_tree(R, start):
         yield node
 
+def _to_jsonable(obj):
+    """
+    Use this for export.
+    Recursively convert objects into JSON-serializable forms:
+    - numpy arrays -> lists
+    - numpy scalars -> Python scalars
+    - containers (dict/list/tuple) -> converted elementwise
+    """
+
+    # --- NumPy arrays ---
+    if isinstance(obj, np.ndarray):
+        # convert to list, then recurse (in case nested arrays, objects)
+        return _to_jsonable(obj.tolist())
+
+    # --- NumPy scalar types (float32, int64, etc.) ---
+    if isinstance(obj, np.generic):
+        return obj.item()  # returns a plain Python scalar
+
+    # --- Containers: list/tuple ---
+    if isinstance(obj, (list, tuple)):
+        return type(obj)(_to_jsonable(x) for x in obj)
+
+    # --- Dicts ---
+    if isinstance(obj, dict):
+        # Ensure values are converted; keys should already be JSON-OK
+        return {k: _to_jsonable(v) for k, v in obj.items()}
+
+    # Everything else is returned as-is; must already be JSON-serializable
+    return obj
+
+def make_json_safe_graph(G):
+    """
+    Use this for export
+    Return a deep-copied version of G where:
+    - all numpy arrays are converted to lists
+    - all numpy scalar types are converted to Python scalars
+    - node, edge, and graph attributes are processed
+    """
+
+    # deep copy so we don't mutate the original
+    H = copy.deepcopy(G)
+
+    # graph-level attributes
+    for k in list(H.graph.keys()):
+        H.graph[k] = _to_jsonable(H.graph[k])
+
+    # node attributes
+    for n, data in H.nodes(data=True):
+        for k in list(data.keys()):
+            data[k] = _to_jsonable(data[k])
+
+    # edge attributes
+    for u, v, data in H.edges(data=True):
+        for k in list(data.keys()):
+            data[k] = _to_jsonable(data[k])
+
+    return H
+    
 
 ###############
 # MAIN MODULE #
@@ -353,6 +414,18 @@ def main():
             G.nodes[parent]['s'] = [G.nodes[child]['s'][0] + G.nodes[parent]['s_upstream'][0]]
             # Update edge
             G.edges[parent,child]['s'] = G.nodes[child]['s'][0] + G.edges[parent,child]['s_upstream']
+
+    # Create JSON-safe graph for export
+    # This converts numpy arrays to lists
+    H = make_json_safe_graph(G)
+
+    # export H, the JSON-safe data file
+    if outjson is not None:
+        gcore.message("Exporting JSON of NetworkX river-network object.")
+        data = json_graph.node_link_data(H)
+        with open("my_graph.json", "w") as f:
+            json.dump(data, f, indent=2)
+        gcore.message("Export complete.")
 
 if __name__ == "__main__":
     main()
