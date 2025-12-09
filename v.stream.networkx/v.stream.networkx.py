@@ -415,7 +415,7 @@ def main():
     if outjson is not None:
         gcore.message("Exporting JSON of NetworkX river-network object.")
         data = json_graph.node_link_data(H)
-        with open("my_graph.json", "w") as f:
+        with open(outjson, "w") as f:
             json.dump(data, f, indent=2)
         gcore.message("Export complete.")
 
