@@ -5,7 +5,7 @@ All notable changes to this project are documented in this file.
 The format is based on [Keep a Changelog](https://keepachangelog.com/en/1.1.0/),
 and this project aims to follow [Semantic Versioning](https://semver.org/).
 
-## [0.2.0] - unreleased
+## [0.2.0] - 2026-06-24
 
 First release since 2017. It marks the modernization of the toolkit for current
 GRASS GIS and the addition of NetworkX-based river-network analysis, developed
@@ -47,5 +47,5 @@ The API is still pre-1.0 and may change.
 Initial tagged release (code from December 2016): early GRASS GIS modules for
 extracting and profiling river networks.
 
-[0.2.0]: https://github.com/awickert/GRASS-fluvial-profiler/compare/v0.1.0...HEAD
+[0.2.0]: https://github.com/awickert/GRASS-fluvial-profiler/compare/v0.1.0...v0.2.0
 [0.1.0]: https://github.com/awickert/GRASS-fluvial-profiler/releases/tag/v0.1.0
