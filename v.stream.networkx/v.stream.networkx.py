@@ -10,7 +10,7 @@
 # COPYRIGHT:    (c) 2025 Andrew Wickert
 #
 #               This program is free software under the GNU General Public
-#               License (>=v2). Read the file COPYING that comes with GRASS
+#               License (>=v3). Read the file COPYING that comes with GRASS
 #               for details.
 #
 #############################################################################
