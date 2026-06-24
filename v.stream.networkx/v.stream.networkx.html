@@ -42,9 +42,10 @@ the accumulation values; they do not change the network structure.
 Build a stream network from a DEM and export it as NetworkX JSON (GRASS shell):
 
 <div class="code"><pre>
-# Region and per-cell area (for area-weighted flow accumulation)
+# Region and per-cell area (for area-weighted flow accumulation).
+# For a projected (metric) location the cell area is just nsres * ewres.
 g.region -p raster=DEM
-r.cell.area output=cellArea_meters2 units=m2 --overwrite
+r.mapcalc "cellArea_meters2 = nsres() * ewres()" --overwrite
 
 # Flow accumulation in m^2, masked to the DEM
 r.watershed elevation=DEM flow=cellArea_meters2 \
