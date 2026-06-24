@@ -8,9 +8,13 @@ and this project aims to follow [Semantic Versioning](https://semver.org/).
 ## [0.2.0] - unreleased
 
 First release since 2017. It marks the modernization of the toolkit for current
-GRASS GIS and the addition of NetworkX-based river-network analysis (work
-presented at AGU 2025 and developed in collaboration with Fergus McNab, GFZ
-Potsdam). The API is still pre-1.0 and may change.
+GRASS GIS and the addition of NetworkX-based river-network analysis, developed
+in collaboration with Fergus McNab (GFZ Potsdam) and presented at AGU 2025:
+
+> Wickert, A. D., and F. McNab (2025), Simulating Geomorphic Evolution Through
+> River Networks, EP23D-1702, *AGU Fall Meeting*, New Orleans, LA, USA.
+
+The API is still pre-1.0 and may change.
 
 ### Added
 - **`v.stream.networkx`**: a new module that builds a [NetworkX](https://networkx.org/)
