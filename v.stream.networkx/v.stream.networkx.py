@@ -65,11 +65,6 @@
 ##################
 # IMPORT MODULES #
 ##################
-# CUSTOM
-# temporary patch
-import sys
-sys.path.insert(0, '/home/awickert/dataanalysis/GRASS-fluvial-profiler/v.stream.profiler/')
-#import RiverNetwork as rn # Now using NetworkX instead of my custom network code
 # PYTHON
 import sys
 import numpy as np
