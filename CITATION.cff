@@ -1,0 +1,30 @@
+cff-version: 1.2.0
+message: "If you use this software, please cite it as below."
+title: "GRASS-fluvial-profiler: fluvial geomorphology tools for GRASS GIS"
+abstract: >-
+  A collection of GRASS GIS addon modules for fluvial geomorphology:
+  river-network topology, NetworkX graph construction and export, river
+  long profiles, and slope-accumulation analysis.
+type: software
+authors:
+  - family-names: Wickert
+    given-names: Andrew D.
+    # TODO: confirm before release
+    # orcid: "https://orcid.org/XXXX-XXXX-XXXX-XXXX"
+    # affiliation: "University of Minnesota"
+version: 0.2.0
+# TODO: set to the actual tag date when v0.2.0 is released
+date-released: "2026-06-24"
+license: GPL-2.0-or-later
+repository-code: "https://github.com/awickert/GRASS-fluvial-profiler"
+url: "https://github.com/awickert/GRASS-fluvial-profiler"
+# TODO: add the Zenodo DOI here once the release is archived
+# doi: "10.5281/zenodo.XXXXXXX"
+keywords:
+  - GRASS GIS
+  - geomorphology
+  - fluvial geomorphology
+  - rivers
+  - long profile
+  - drainage network
+  - NetworkX
