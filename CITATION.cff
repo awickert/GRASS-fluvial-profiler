@@ -13,7 +13,6 @@ authors:
 version: 0.2.0
 # TODO: set to the actual tag date when v0.2.0 is released
 date-released: "2026-06-24"
-# TODO: confirm license (LICENSE file is GPLv3; code headers say GPL >=v2)
 license: GPL-3.0-or-later
 repository-code: "https://github.com/awickert/GRASS-fluvial-profiler"
 url: "https://github.com/awickert/GRASS-fluvial-profiler"

@@ -66,7 +66,7 @@ See each module's manual page for full option lists and examples.
 
 ## License
 
-GNU General Public License, version 2 or later (GPL >= v2). See
+GNU General Public License, version 3 or later (GPL >= v3). See
 [`LICENSE`](LICENSE).
 
 ## Author
