@@ -15,8 +15,8 @@ date-released: "2026-06-25"
 license: GPL-3.0-or-later
 repository-code: "https://github.com/awickert/GRASS-fluvial-profiler"
 url: "https://github.com/awickert/GRASS-fluvial-profiler"
-# Zenodo will mint a DOI on release; add it here afterward
-# doi: "10.5281/zenodo.XXXXXXX"
+# Concept DOI: always resolves to the latest version on Zenodo
+doi: "10.5281/zenodo.20848466"
 keywords:
   - GRASS GIS
   - geomorphology

@@ -1,5 +1,7 @@
 # GRASS-fluvial-profiler
 
+[![DOI](https://zenodo.org/badge/DOI/10.5281/zenodo.20848466.svg)](https://doi.org/10.5281/zenodo.20848466)
+
 Fluvial geomorphology in [GRASS GIS](https://grass.osgeo.org/): river long
 profiles, slope/accumulation (e.g., slope&ndash;area) relationships, river-network
 graphs, channel steepness index (not yet), hillslope-to-fluvial transition
