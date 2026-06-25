@@ -1,5 +1,4 @@
 # Required add-ons
-#   r.cell.area
 #   r.stream.extract (now mainstream?)
 #   v.stream.network
 #   v.stream.profiler
@@ -45,7 +44,9 @@ outstream=LittleCottonwood
 ###########
 
 g.region -p rast=$DEM --o
-r.cell.area output=$cellsize_km2 units=km2 --o
+# Cell area in km2. For a projected (metric) DEM this is just the cell
+# dimensions; use r.cell.area instead for lat/lon grids, where area varies.
+r.mapcalc "$cellsize_km2 = nsres() * ewres() / 1e6" --o
 r.slope.aspect elevation=$DEM slope=$slope format=percent --o
 r.mapcalc "slope = slope / 100." --o
 # Have to run r.watershed separately because r.stream.extract does not support 
