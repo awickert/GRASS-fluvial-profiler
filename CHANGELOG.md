@@ -42,8 +42,8 @@ The API is still pre-1.0 and may change.
 ### Removed
 - Legacy scripts outside the fluvial-profiler scope (PRMS/MODFLOW/GSFLOW
   grid and parameter builders, an older standalone network extractor, and
-  assorted one-off utilities). One standalone profiler script was moved to
-  `archive/`.
+  assorted one-off utilities). Standalone, multicore, and other Python-2
+  development scripts were moved to `archive/`.
 
 ## [0.1.0] - 2017-09-16
 
