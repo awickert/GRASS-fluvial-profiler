@@ -61,9 +61,10 @@ v.stream.network map=$streams
 
 # This gives different slopes and drainage areas than expected -- perhaps SFD needed
 
-#!!!!!!!!!!!!!!!!!!!!
-start_segment_cat=135 # !!! USE GSFLOW--GRASS TOOLS TO HELP SELECT THIS!
-#!!!!!!!!!!!!!!!!!!!!
+# Choose the starting stream segment (category) for the profile. Identify it
+# from the streams map -- e.g. in the GRASS display, or with the GSFLOW-GRASS
+# tools.
+start_segment_cat=135
 v.stream.profiler cat=$start_segment_cat streams=$streams direction=upstream \
                   elevation=$DEM accumulation=$accum slope=$slope units=km2 \
                   plots=LongProfile,SlopeAccum,SlopeDistance,AccumDistance \
