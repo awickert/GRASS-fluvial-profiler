@@ -23,7 +23,7 @@ The API is still pre-1.0 and may change.
   breadth-first sweep, and optionally exports the graph as JSON.
 - `Makefile` and HTML manual page for `v.stream.networkx` so it builds and
   installs as a GRASS addon.
-- `LICENSE` (GNU GPL v2 or later).
+- `LICENSE` (GNU GPL v3 or later).
 - `CITATION.cff` so the release is citable.
 - `examples/clean_coarsen_network.py`: a post-processing ("stage 2") script
   that despikes, smooths, and coarsens a `v.stream.networkx` JSON export for
