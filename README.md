@@ -64,6 +64,20 @@ v.stream.networkx streams=streams elevation=DEM accumulation=accumulation \
 
 See each module's manual page for full option lists and examples.
 
+### Post-processing
+
+`examples/clean_coarsen_network.py` is an optional "stage 2" for the JSON
+exported by `v.stream.networkx`: it despikes and smooths the DEM-sampled
+elevations along each segment and coarsens (resamples) the network, producing a
+cleaner, thinner network suitable as input to a downstream long-profile model
+such as [GRLP](https://github.com/awickert/GRLP). For example:
+
+```
+python examples/clean_coarsen_network.py network.json network_clean.json
+```
+
+Run with `--help` to see the despiking, smoothing, and coarsening options.
+
 ## License
 
 GNU General Public License, version 3 or later (GPL >= v3). See

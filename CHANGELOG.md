@@ -25,6 +25,9 @@ The API is still pre-1.0 and may change.
   installs as a GRASS addon.
 - `LICENSE` (GNU GPL v2 or later).
 - `CITATION.cff` so the release is citable.
+- `examples/clean_coarsen_network.py`: a post-processing ("stage 2") script
+  that despikes, smooths, and coarsens a `v.stream.networkx` JSON export for
+  use as input to a downstream long-profile model such as GRLP.
 - Project `README` with module overview, dependencies, installation, and usage;
   this changelog.
 
