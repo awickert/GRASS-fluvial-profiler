@@ -111,9 +111,11 @@
 # IMPORT MODULES #
 ##################
 # CUSTOM
-# temporary patch
+# Add this module's own directory to the path so that the sibling
+# RiverNetwork module can be imported regardless of the working directory.
+import os
 import sys
-sys.path.insert(0, '/home/awickert/dataanalysis/GRASS-fluvial-profiler/v.stream.profiler/')
+sys.path.insert(0, os.path.dirname(os.path.abspath(__file__)))
 import RiverNetwork as rn
 # PYTHON
 import numpy as np
