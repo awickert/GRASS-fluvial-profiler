@@ -11,7 +11,7 @@ authors:
     given-names: "Andrew D."
     orcid: "https://orcid.org/0000-0002-9545-3365"
 version: 0.2.0
-date-released: "2026-06-24"
+date-released: "2026-06-25"
 license: GPL-3.0-or-later
 repository-code: "https://github.com/awickert/GRASS-fluvial-profiler"
 url: "https://github.com/awickert/GRASS-fluvial-profiler"

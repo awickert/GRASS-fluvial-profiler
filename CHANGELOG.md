@@ -5,7 +5,7 @@ All notable changes to this project are documented in this file.
 The format is based on [Keep a Changelog](https://keepachangelog.com/en/1.1.0/),
 and this project aims to follow [Semantic Versioning](https://semver.org/).
 
-## [0.2.0] - 2026-06-24
+## [0.2.0] - 2026-06-25
 
 First release since 2017. It marks the modernization of the toolkit for current
 GRASS GIS and the addition of NetworkX-based river-network analysis, developed
