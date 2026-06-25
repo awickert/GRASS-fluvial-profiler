@@ -35,14 +35,15 @@ Each module has its own GRASS HTML manual page in its directory.
 ## Installation
 
 Each module is a standard GRASS Python addon. From within a GRASS session you
-can install one directly from its source directory, for example:
+can install one with `g.extension`, pointing its `url` at wherever the module
+lives &mdash; a local path or this repository:
 
 ```
-g.extension extension=v.stream.networkx url=v.stream.networkx/
+g.extension extension=v.stream.networkx url=<path-or-URL-to-the-module>
 ```
 
-or point `g.extension` at this repository. Alternatively, copy the module's
-`.py` file into your GRASS addons `scripts/` directory and make it executable.
+Alternatively, copy the module's `.py` file into your GRASS addons `scripts/`
+directory and make it executable.
 
 ## Usage
 
