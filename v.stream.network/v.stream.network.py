@@ -187,7 +187,7 @@ def main():
         caty = dfnet[row[y2] == dfnet[y1]].cat
         cats = list(set(catx).intersection(set(caty)))
         if ( len(cats) == 0):
-            dfnet.loc[fr_idx, 'to_cat'] = -1
+            dfnet.loc[fr_idx, 'to_cat'] = 0
             continue
         elif len(cats) > 1:
             print("Diverging graph!")
