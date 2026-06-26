@@ -224,6 +224,24 @@ def test_fit_sa_break_too_few_points():
     assert rnx.fit_sa_break([1.0, 2.0, 3.0], [0.0, -0.1, -0.2]) is None
 
 
+def test_channel_head_points():
+    recs = [
+        # crosses A*=1200 between vertices at A=1000 (x=10) and A=2000 (x=20)
+        {"cat": 5, "x": [0.0, 10.0, 20.0], "y": [0.0, 0.0, 0.0],
+         "A": [100.0, 1000.0, 2000.0]},
+        {"cat": 6, "x": [0.0, 5.0], "y": [0.0, 0.0], "A": [100.0, 800.0]},   # all below
+        {"cat": 7, "x": [0.0, 5.0], "y": [0.0, 0.0], "A": [5000.0, 9000.0]},  # all above
+        # reversed order (downstream first) still found and oriented
+        {"cat": 8, "x": [20.0, 10.0], "y": [9.0, 9.0], "A": [2000.0, 1000.0]},
+    ]
+    heads = rnx.channel_head_points(recs, A_star=1200.0)
+    by_cat = {c: (x, y) for x, y, c in heads}
+    assert set(by_cat) == {5, 8}                 # only the crossing segments
+    # interp: f = (1200-1000)/(2000-1000) = 0.2 -> x = 10 + 0.2*10 = 12
+    assert np.isclose(by_cat[5][0], 12.0)
+    assert np.isclose(by_cat[8][0], 12.0) and np.isclose(by_cat[8][1], 9.0)
+
+
 if __name__ == "__main__":
     for name, fn in sorted(globals().items()):
         if name.startswith("test_") and callable(fn):

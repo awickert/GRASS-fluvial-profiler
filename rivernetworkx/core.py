@@ -437,6 +437,47 @@ def fit_sa_break(logA, logS, knots=None, min_side=10):
     return best
 
 
+def channel_head_points(records, A_star):
+    """
+    Locate fluvial channel heads as the points where drainage area first reaches
+    ``A_star`` going downstream -- i.e. where each channel becomes fluvial, with
+    ``A_star`` the slope--area break from :func:`fit_sa_break`.
+
+    Flow accumulation already integrates the upstream contributing area, so no
+    network topology is needed: within a segment whose upstream end is below
+    ``A_star`` and downstream end is at or above it, the crossing is exactly that
+    channel's fluvial head. The location is linearly interpolated in area between
+    the two bracketing vertices.
+
+    Each record needs per-vertex ``A`` (drainage area) and ``x``/``y``. Vertices
+    may be ordered either way; the segment is oriented to ascending area first.
+
+    Returns a list of ``(x, y, cat)`` -- one head per channel that initiates
+    within the network. Channels entirely below ``A_star`` (never fluvial in the
+    extracted network) or entirely above it (downstream of their head) yield none.
+    """
+    heads = []
+    for rec in records:
+        A = np.asarray(rec['A'], dtype=float)
+        x = np.asarray(rec['x'], dtype=float)
+        y = np.asarray(rec['y'], dtype=float)
+        if A.size < 2:
+            continue
+        if A[0] > A[-1]:                       # orient upstream -> downstream
+            A, x, y = A[::-1], x[::-1], y[::-1]
+        if not (A[0] < A_star <= A[-1]):
+            continue
+        i = int(np.argmax(A >= A_star))        # first vertex at/above A_star
+        if i == 0:
+            xh, yh = x[0], y[0]
+        else:
+            f = (A_star - A[i - 1]) / (A[i] - A[i - 1])
+            xh = x[i - 1] + f * (x[i] - x[i - 1])
+            yh = y[i - 1] + f * (y[i] - y[i - 1])
+        heads.append((float(xh), float(yh), int(rec['cat'])))
+    return heads
+
+
 #######
 # I/O #
 #######
