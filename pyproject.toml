@@ -17,3 +17,8 @@ Homepage = "https://github.com/awickert/GRASS-fluvial-profiler"
 
 [tool.setuptools]
 packages = ["rivernetworkx"]
+
+[tool.pytest.ini_options]
+# Pure, GRASS-free tests only. The GRASS-inclusive suite under testsuite/ runs
+# locally via `python -m grass.gunittest.main` in a GRASS session (not in CI).
+testpaths = ["tests"]
