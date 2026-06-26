@@ -5,6 +5,27 @@ All notable changes to this project are documented in this file.
 The format is based on [Keep a Changelog](https://keepachangelog.com/en/1.1.0/),
 and this project aims to follow [Semantic Versioning](https://semver.org/).
 
+## [Unreleased]
+
+### Added
+- **`rivernetworkx`**: a new importable Python package (pure NetworkX, no GRASS)
+  that single-sources the river-network logic — graph construction
+  (`build_network`/`build_graph`), raster sampling, breadth-first traversal,
+  cumulative-distance accumulation, and node-link JSON I/O. The GRASS modules
+  are now thin consumers of it, and the same representation is reusable outside
+  GRASS (e.g. the GRLP coupling).
+
+### Changed
+- **`v.stream.network`** gains an optional `json=` export (with `elevation=`,
+  `accumulation=`, `accum_mult=`): it builds the NetworkX river-network graph,
+  samples rasters along each segment, computes cumulative distance upstream of
+  the outlet, and writes node-link JSON. This is the capability formerly
+  provided by the separate `v.stream.networkx` module.
+
+### Removed
+- **`v.stream.networkx`**: retired. Its sole job (build graph &rarr; JSON) is now
+  the `json=` option on `v.stream.network`, backed by `rivernetworkx`.
+
 ## [0.2.0] - 2026-06-25
 
 First release since 2017. It marks the modernization of the toolkit for current

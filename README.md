@@ -22,9 +22,12 @@ stream network extracted by
 
 | Module | Purpose |
 | --- | --- |
-| **`v.stream.network`** | Adds topology columns to a stream-network vector: upstream/downstream node coordinates and `tostream`, the category of the next segment downstream (`0` if the stream leaves the map). |
-| **`v.stream.networkx`** | Builds a [NetworkX](https://networkx.org/) directed graph of the network, samples elevation and flow accumulation along each segment, computes cumulative distance upstream of the outlet, and optionally exports the graph as JSON. |
+| **`v.stream.network`** | Adds topology columns to a stream-network vector: upstream/downstream node coordinates and `tostream`, the category of the next segment downstream (`0` if the stream leaves the map). Optionally (`json=`) exports the linked network as a [NetworkX](https://networkx.org/) node-link JSON graph, sampling elevation and flow accumulation along each segment and computing cumulative distance upstream of the outlet. |
 | **`v.stream.profiler`** | Builds and plots river long profiles and slope&ndash;accumulation (e.g., slope&ndash;area) diagrams for a single downstream-directed channel. |
+
+The graph construction, raster sampling, and JSON I/O shared by these modules
+live in the [`rivernetworkx`](rivernetworkx/) Python package (pure NetworkX, no
+GRASS), so the same network representation is reusable outside GRASS.
 
 Each module has its own GRASS HTML manual page in its directory.
 
@@ -32,7 +35,9 @@ Each module has its own GRASS HTML manual page in its directory.
 
 - [GRASS GIS](https://grass.osgeo.org/) (a current release)
 - Python 3 with `numpy`, `pandas`, `matplotlib`, `scipy`
-- `networkx` (for `v.stream.networkx`)
+- `networkx` (for the river-network graph and JSON export)
+- The `rivernetworkx` package in this repository (`pip install -e .`), which the
+  modules import for graph construction and JSON I/O
 
 ## Installation
 
@@ -41,7 +46,7 @@ can install one with `g.extension`, pointing its `url` at wherever the module
 lives &mdash; a local path or this repository:
 
 ```
-g.extension extension=v.stream.networkx url=<path-or-URL-to-the-module>
+g.extension extension=v.stream.network url=<path-or-URL-to-the-module>
 ```
 
 Alternatively, copy the module's `.py` file into your GRASS addons `scripts/`
@@ -60,9 +65,8 @@ r.stream.extract elevation=DEM accumulation=accumulation \
     stream_raster=streams stream_vector=streams \
     threshold=30000000 direction=draindir d8cut=0 --overwrite
 
-v.stream.network map=streams
-v.stream.networkx streams=streams elevation=DEM accumulation=accumulation \
-    units=m2 outjson=network.json
+v.stream.network map=streams elevation=DEM accumulation=accumulation \
+    json=network.json
 ```
 
 See each module's manual page for full option lists and examples.
@@ -70,7 +74,7 @@ See each module's manual page for full option lists and examples.
 ### Post-processing
 
 `examples/clean_coarsen_network.py` is an optional "stage 2" for the JSON
-exported by `v.stream.networkx`: it despikes and smooths the DEM-sampled
+exported by `v.stream.network json=`: it despikes and smooths the DEM-sampled
 elevations along each segment and coarsens (resamples) the network, producing a
 cleaner, thinner network suitable as input to a downstream long-profile model
 such as [GRLP](https://github.com/awickert/GRLP). For example:
