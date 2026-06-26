@@ -178,6 +178,8 @@ def build_profile(records_by_cat, path, attrs, dx_target, window):
             _, dens = rnx.densify(s_down, carry, dx_target)
             rec.update(dens)
         if window is not None:
+            # !!!! TODO: switches to smooth z / slope / accumulation
+            # individually (one window currently smooths them all) !!!!
             for name, arr in rnx.smooth_segment(rec, attrs, window).items():
                 rec[name + '_smoothed'] = arr
         processed[cat] = rec
@@ -243,6 +245,14 @@ def main():
         rnx.export_json(H, outjson)
         gscript.message("Wrote JSON sub-network: %s" % outjson)
 
+    # Warn (rather than silently skip) when a requested plot lacks its input.
+    required = {'LongProfile': elevation, 'SlopeAccum': slope and accumulation,
+                'SlopeDistance': slope, 'AccumDistance': accumulation}
+    for p in plots:
+        if not required.get(p, True):
+            gscript.warning("Plot '%s' needs its input raster(s) "
+                            "(elevation / accumulation / slope); skipping." % p)
+
     # Plots
     smooth = window is not None
     if 'LongProfile' in plots and elevation:
@@ -283,21 +293,27 @@ def main():
     if plots:
         plt.show()
 
-    # Text long-profile table: one row per point, one block per path
+    # Text long-profile table: one row per point, labelled by its source
+    # segment (cat). In upstream mode the headwater->start paths share their
+    # trunk, so de-duplicate by cat to write each segment once (a segment's
+    # distance from the start is path-independent in a converging network).
     if outfile:
-        cols = ['path', 's', 'x', 'y'] + attrs
+        cols = ['cat', 's', 'x', 'y'] + attrs
         if smooth:
             cols += [a + '_smoothed' for a in attrs]
+        seen = set()
         rows = []
-        for ipath, prof in enumerate(profiles):
-            n = len(prof['s'])
-            block = [np.full(n, ipath), prof['s'], prof['x'], prof['y']]
+        for prof in profiles:
+            block = [prof['cat'], prof['s'], prof['x'], prof['y']]
             block += [prof[a] for a in attrs]
             if smooth:
                 block += [prof[a + '_smoothed'] for a in attrs]
-            rows.append(np.column_stack(block))
-        table = np.vstack(rows)
-        np.savetxt(outfile, table, fmt='%s',
+            block = np.column_stack(block)
+            mask = np.array([int(c) not in seen for c in prof['cat']])
+            seen.update(int(c) for c in prof['cat'])
+            if mask.any():
+                rows.append(block[mask])
+        np.savetxt(outfile, np.vstack(rows), fmt='%s',
                    header=' '.join(cols), comments='')
         gscript.message("Wrote long-profile table: %s" % outfile)
 
