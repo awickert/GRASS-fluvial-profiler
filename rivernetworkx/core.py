@@ -188,6 +188,96 @@ def downstream_path(G, node, outlet=OFFMAP):
     return nx.shortest_path(G, node, outlet)
 
 
+###############################
+# PROFILE ASSEMBLY / RESAMPLE #
+###############################
+
+def assemble_downstream_profile(records_by_cat, path, attrs=()):
+    """
+    Concatenate per-segment arrays into one continuous downstream profile.
+
+    records_by_cat : {cat: record dict} with per-vertex ``x``/``y`` (and any
+                     attrs), vertices ordered upstream -> downstream.
+    path           : downstream-ordered cats [most upstream, ..., last on map];
+                     e.g. ``downstream_path(G, start, outlet)`` with the outlet
+                     dropped.
+    attrs          : extra per-vertex attribute names to carry (e.g. ``'z'``,
+                     ``'A'``, ``'slope'``).
+
+    Returns a dict with ``s`` (cumulative distance upstream of the network
+    mouth), ``x``, ``y``, and each requested attribute, each a 1-D array running
+    upstream -> downstream. Vertices shared at junctions are de-duplicated.
+    """
+    path = list(path)
+    # Per-segment along-distance, and distance from the mouth at each segment's
+    # downstream end (accumulated walking upstream from the mouth).
+    s_down = {cat: segment_distances(records_by_cat[cat]['x'],
+                                     records_by_cat[cat]['y'])[0]
+              for cat in path}
+    offset = {}
+    running = 0.0
+    for cat in reversed(path):                       # downstream -> upstream
+        offset[cat] = running
+        running += s_down[cat][-1]
+
+    names = ['x', 'y'] + list(attrs)
+    out = {name: [] for name in names}
+    out['s'] = []
+    prev = None
+    for cat in path:                                 # upstream -> downstream
+        rec = records_by_cat[cat]
+        # distance from the mouth, decreasing downstream within the segment
+        s_seg = offset[cat] + (s_down[cat][-1] - s_down[cat])
+        start = 1 if prev is not None else 0         # drop shared junction point
+        out['s'].append(s_seg[start:])
+        for name in names:
+            out[name].append(np.asarray(rec[name], dtype=float)[start:])
+        prev = cat
+    for name in list(out):
+        out[name] = (np.concatenate(out[name]) if out[name]
+                     else np.array([], dtype=float))
+    return out
+
+
+def densify(s, arrays, dx_target):
+    """
+    Resample 1-D arrays to ~uniform spacing ``dx_target`` along ``s``.
+
+    s        : monotonic 1-D distance (either direction).
+    arrays   : {name: 1-D array} sampled at ``s``.
+    Returns (new_s ascending, {name: resampled array}); endpoints preserved,
+    linear interpolation.
+    """
+    s = np.asarray(s, dtype=float)
+    order = np.argsort(s)
+    s_sorted = s[order]
+    s0, s1 = s_sorted[0], s_sorted[-1]
+    n = max(int(np.ceil((s1 - s0) / float(dx_target))) + 1, 2)
+    new_s = np.linspace(s0, s1, n)
+    out = {name: np.interp(new_s, s_sorted, np.asarray(arr, dtype=float)[order])
+           for name, arr in arrays.items()}
+    return new_s, out
+
+
+def moving_average(s, y, window):
+    """
+    Centered moving average of ``y`` over a distance ``window`` in ``s`` units.
+
+    ``s`` need not be evenly spaced; NaNs are ignored. Returns an array the same
+    length as ``y``.
+    """
+    s = np.asarray(s, dtype=float)
+    y = np.asarray(y, dtype=float)
+    half = window / 2.0
+    out = np.empty(len(y), dtype=float)
+    for i, si in enumerate(s):
+        sel = (s >= si - half) & (s <= si + half)
+        vals = y[sel]
+        vals = vals[~np.isnan(vals)]
+        out[i] = np.mean(vals) if len(vals) else np.nan
+    return out
+
+
 #######
 # I/O #
 #######

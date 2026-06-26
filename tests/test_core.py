@@ -65,6 +65,41 @@ def test_traversal():
     assert rnx.downstream_path(G, 1, outlet=0) == [1, 3, 0]
 
 
+def test_assemble_downstream_profile():
+    # Records indexed by cat; downstream path from headwater 1 -> junction 3.
+    by_cat = {r["cat"]: r for r in RECORDS}
+    G = rnx.build_graph(RECORDS)
+    path = rnx.downstream_path(G, 1, outlet=0)[:-1]  # drop the off-map outlet
+    assert path == [1, 3]
+    prof = rnx.assemble_downstream_profile(by_cat, path, attrs=("z",))
+    # seg 1 has 2 vertices, seg 3 has 2; one shared junction dropped -> 3 points
+    assert len(prof["s"]) == 3 and len(prof["z"]) == 3
+    # distance from mouth: headwater at 30 + DIAG, mouth at 0
+    assert np.isclose(prof["s"].max(), 30.0 + DIAG)
+    assert np.isclose(prof["s"].min(), 0.0)
+    # elevation falls downstream: 9 (headwater) -> 0 (mouth)
+    assert np.isclose(prof["z"][0], 9.0) and np.isclose(prof["z"][-1], 0.0)
+
+
+def test_densify():
+    s = np.array([0.0, 10.0])
+    new_s, arr = rnx.densify(s, {"z": np.array([0.0, 100.0])}, dx_target=2.5)
+    assert len(new_s) == 5  # ceil(10/2.5)+1
+    assert np.allclose(new_s, [0.0, 2.5, 5.0, 7.5, 10.0])
+    assert np.allclose(arr["z"], [0.0, 25.0, 50.0, 75.0, 100.0])  # linear interp
+
+
+def test_moving_average():
+    s = np.arange(5.0)            # 0,1,2,3,4
+    y = np.array([0.0, 10.0, 0.0, 10.0, 0.0])
+    sm = rnx.moving_average(s, y, window=2.0)  # +/- 1 each side
+    assert np.isclose(sm[2], np.mean([10.0, 0.0, 10.0]))  # neighbors at 1,2,3
+    # NaNs are ignored, not propagated
+    y2 = np.array([0.0, np.nan, 4.0])
+    sm2 = rnx.moving_average(np.arange(3.0), y2, window=10.0)
+    assert np.isclose(sm2[0], 2.0)
+
+
 def test_json_roundtrip(tmp_path=None):
     G = rnx.build_graph(RECORDS)
     path = os.path.join(tmp_path or "/tmp", "rnx_roundtrip.json")
