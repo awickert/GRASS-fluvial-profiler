@@ -42,6 +42,17 @@ print "Building drainage network"
 r.stream_extract(elevation=elevation, accumulation='drainageArea_m2', threshold=thresh, d8cut=0, mexp=0, stream_raster='streams', stream_vector='streams', direction='draindir', overwrite=True)
 </pre></div>
 
+<p>
+When <b>accumulation</b> is sampled for the <b>json</b> export, an incomplete
+catchment (one whose contributing area extends off the map) is detected: GRASS
+<em>r.watershed</em> marks such cells with <i>negative</i> flow accumulation, and
+if that reaches a channel head <em>v.stream.network</em> stops with an error
+(off-map upstream inflow is not yet supported). If the region truly contains the
+full basin &mdash; for example a drainage divide lying exactly on the region edge
+&mdash; pass the <b>-c</b> flag to treat such negatives as a boundary artifact and
+proceed. A raster with no data (NULL) under a channel cell is always an error.
+</p>
+
 <h2>SEE ALSO</h2>
 
 <em>
