@@ -233,20 +233,20 @@ def downsample_edge_along_s_new(
 
     for u, v, data in H.edges(data=True):
 
-        # Retrieve original arrays
-        s = np.asarray(data.get(s_attr, None))
-        x = np.asarray(data.get(x_attr, None))
-        y = np.asarray(data.get(y_attr, None))
-        z = np.asarray(data.get(z_attr, None))
-        A = np.asarray(data.get(A_attr, None))
-
-        # Skip edges missing any attribute
-        if any(arr is None for arr in (s, x, y, z, A)):
+        # Required geometry/elevation attrs; accumulation (A) is optional, since
+        # v.stream.network json= may be run without an accumulation raster.
+        if any(data.get(a) is None for a in (s_attr, x_attr, y_attr, z_attr)):
             continue
+        s = np.asarray(data[s_attr])
+        x = np.asarray(data[x_attr])
+        y = np.asarray(data[y_attr])
+        z = np.asarray(data[z_attr])
+        has_A = data.get(A_attr) is not None
+        A = np.asarray(data[A_attr]) if has_A else None
 
-        # All arrays must have same length
+        # All present arrays must have the same length
         n = len(s)
-        if not (len(x) == len(y) == len(z) == len(A) == n):
+        if not (len(x) == len(y) == len(z) == n and (not has_A or len(A) == n)):
             continue
 
         # Need >=3 points to create interior
@@ -259,7 +259,8 @@ def downsample_edge_along_s_new(
         x = x[idx]
         y = y[idx]
         z = z[idx]
-        A = A[idx]
+        if has_A:
+            A = A[idx]
 
         # How many interior samples?
         n_new = int(round(keep_fraction * n))
@@ -277,20 +278,14 @@ def downsample_edge_along_s_new(
         fx = interp1d(s, x, kind="linear")
         fy = interp1d(s, y, kind="linear")
         fz = interp1d(s, z, kind="linear")
-        fA = interp1d(s, A, kind="linear")
 
-        # Interpolate
-        x_new = fx(s_new)
-        y_new = fy(s_new)
-        z_new = fz(s_new)
-        A_new = fA(s_new)
-
-        # Store back on the NEW graph
+        # Interpolate and store back on the NEW graph
         data[s_attr] = s_new.tolist()
-        data[x_attr] = x_new.tolist()
-        data[y_attr] = y_new.tolist()
-        data[z_attr] = z_new.tolist()
-        data[A_attr] = A_new.tolist()
+        data[x_attr] = fx(s_new).tolist()
+        data[y_attr] = fy(s_new).tolist()
+        data[z_attr] = fz(s_new).tolist()
+        if has_A:
+            data[A_attr] = interp1d(s, A, kind="linear")(s_new).tolist()
 
     return H
 
