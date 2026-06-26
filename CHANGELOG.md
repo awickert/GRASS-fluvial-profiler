@@ -7,6 +7,15 @@ and this project aims to follow [Semantic Versioning](https://semver.org/).
 
 ## [Unreleased]
 
+### Fixed
+- **`v.stream.network`** no longer crashes on a real network that has both
+  tributary confluences and an off-map outlet. The downstream-cat values come
+  back from `vector_db_select` as strings, which made the `to_cat` column
+  string-typed; assigning the integer `0` off-map sentinel into it then raised a
+  `TypeError` under pandas' string dtype. The linked cat is now cast to `int`.
+  (Synthetic test fixtures have no confluence, so this only surfaced on real
+  data — e.g. the Trempealeau network.)
+
 ## [0.3.0] - 2026-06-26
 
 This release migrates the toolkit onto a single shared river-network library,
