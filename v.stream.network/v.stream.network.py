@@ -104,6 +104,11 @@
 #%  required: no
 #%end
 
+#%flag
+#%  key: c
+#%  description: Region contains the full basin: treat negative accumulation at channel heads as a boundary artifact, not off-map inflow
+#%end
+
 ##################
 # IMPORT MODULES #
 ##################
@@ -268,7 +273,8 @@ def main():
         accum_mult = float(options['accum_mult'])
         gscript.message("Building network graph and exporting JSON.")
         G = rnx.build_network(streams, elevation=elevation,
-                              accumulation=accumulation, accum_mult=accum_mult)
+                              accumulation=accumulation, accum_mult=accum_mult,
+                              assume_complete=flags['c'])
         rnx.export_json(G, options['json'])
         gscript.message("Export complete: %s" % options['json'])
 

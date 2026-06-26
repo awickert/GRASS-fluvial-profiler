@@ -114,6 +114,11 @@
 #%  required: no
 #%end
 
+#%flag
+#%  key: c
+#%  description: Region contains the full basin: treat negative accumulation at channel heads as a boundary artifact, not off-map inflow
+#%end
+
 ##################
 # IMPORT MODULES #
 ##################
@@ -214,7 +219,8 @@ def main():
     # vector has not been linked by v.stream.network (no 'tostream' column).
     records = rnx.read_stream_vector(streams, elevation=elevation,
                                      accumulation=accumulation, slope=slope,
-                                     accum_mult=accum_mult)
+                                     accum_mult=accum_mult,
+                                     assume_complete=flags['c'])
     records_by_cat = {rec['cat']: rec for rec in records}
     G = rnx.build_graph(records)
     if start not in G:

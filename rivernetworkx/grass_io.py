@@ -201,10 +201,16 @@ def _read_raster(rastname):
 
 
 def read_stream_vector(streams, elevation=None, accumulation=None, slope=None,
-                       accum_mult=1.0):
+                       accum_mult=1.0, assume_complete=False):
     """
     Read a v.stream.network-linked vector (and any rasters) into edge records.
     Requires a live GRASS session.
+
+    ``assume_complete``: when True, the caller asserts the region contains the
+    full basin, so negative accumulation at a channel head is treated as an
+    r.watershed boundary artifact (a divide on the region edge) rather than
+    off-map inflow, and the off-map error is skipped. The NaN-coverage check is
+    always enforced.
     """
     cats, tostream = _read_topology_table(streams)
     geometry = _read_geometry(streams, cats)
@@ -228,21 +234,39 @@ def read_stream_vector(streams, elevation=None, accumulation=None, slope=None,
                                z=samples['z'], A=samples['A'],
                                slope=samples['slope'])
 
+    from grass.script import fatal
+
+    # Accumulation must be defined on every channel cell. A NaN means the
+    # accumulation raster does not cover the network (NULL under the channel);
+    # it would otherwise slip past the off-map head check below (NaN < 0 is
+    # False) and be masked by abs(), so fail loudly.
+    nan_cats = [rec['cat'] for rec in records
+                if rec.get('A') is not None
+                and np.isnan(np.asarray(rec['A'], dtype=float)).any()]
+    if nan_cats:
+        fatal("Accumulation raster has no data at channel cell(s) on "
+              "segment(s) %s: it must cover the full stream network."
+              % ', '.join(str(c) for c in nan_cats))
+
     # An incomplete catchment (off-map upstream contributing area) shows up as
     # negative flow accumulation reaching a channel head. Negative accumulation
     # only at the outlet boundary (the downstream end) is the normal map exit
     # and is fine. Off-map inflow is not yet supported: fail loudly rather than
-    # build a misleading network. (issue #9)
-    bad = offmap_inflow_cats(records)
-    if bad:
-        from grass.script import fatal
-        fatal("Negative flow accumulation reaches the head of segment(s) %s: "
-              "the catchment is incomplete (off-map contributing area upstream; "
-              "r.watershed marks such cells negative). Negative accumulation "
-              "only at the outlet boundary is fine, but off-map inflow is not "
-              "yet supported (enhancement: issue #9). Use a region/DEM that "
-              "fully contains the catchment, or omit accumulation."
-              % ', '.join(str(c) for c in bad))
+    # build a misleading network -- unless the caller asserts a complete basin
+    # (assume_complete), in which case a negative head is a boundary artifact
+    # (a divide on the region edge). (issue #9)
+    if not assume_complete:
+        bad = offmap_inflow_cats(records)
+        if bad:
+            fatal("Negative flow accumulation reaches the head of segment(s) "
+                  "%s: the catchment is incomplete (off-map contributing area "
+                  "upstream; r.watershed marks such cells negative). Negative "
+                  "accumulation only at the outlet boundary is fine. If the "
+                  "region truly contains the full basin (a divide on the edge), "
+                  "re-run asserting a complete catchment; otherwise use a "
+                  "region/DEM that fully contains it, or omit accumulation. "
+                  "(enhancement: issue #9)"
+                  % ', '.join(str(c) for c in bad))
 
     # With off-map inflow ruled out, any remaining negative accumulation is
     # r.watershed's conservative boundary flag at the outlet, whose MAGNITUDE is
@@ -255,9 +279,14 @@ def read_stream_vector(streams, elevation=None, accumulation=None, slope=None,
 
 
 def build_network(streams, elevation=None, accumulation=None, slope=None,
-                  accum_mult=1.0, outlet=OFFMAP):
-    """Read a GRASS stream-network vector and build the NetworkX DiGraph."""
+                  accum_mult=1.0, outlet=OFFMAP, assume_complete=False):
+    """Read a GRASS stream-network vector and build the NetworkX DiGraph.
+
+    ``assume_complete`` is forwarded to read_stream_vector (skip the off-map
+    inflow error when the caller asserts the full basin is in the region).
+    """
     records = read_stream_vector(streams, elevation=elevation,
                                  accumulation=accumulation, slope=slope,
-                                 accum_mult=accum_mult)
+                                 accum_mult=accum_mult,
+                                 assume_complete=assume_complete)
     return build_graph(records, outlet=outlet)
