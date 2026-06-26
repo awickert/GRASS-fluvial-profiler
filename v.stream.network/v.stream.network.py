@@ -216,13 +216,14 @@ def main():
             dfnet.loc[fr_idx, 'to_cat'] = 0
             continue
         elif len(cats) > 1:
-            print("Diverging graph!")
-            # Should probably exit condition here
-            print(i)
-            print(row)
-            print(catx)
-            print(caty)
-            break
+            gscript.fatal(
+                "Diverging network at segment cat=%s: its downstream end "
+                "connects to multiple segments (cats=%s). v.stream.network "
+                "represents one downstream link per segment (a tree / "
+                "converging network), so distributary or braided networks are "
+                "not supported. Inspect the r.stream.extract output near this "
+                "segment." % (int(fr_cat),
+                              ', '.join(str(int(c)) for c in cats)))
         else:
             # Must be just one cat
             cat = cats[0]
