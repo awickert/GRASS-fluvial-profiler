@@ -1,7 +1,8 @@
-MODULE_TOPDIR = ../..
+MODULE_TOPDIR = /usr/local/grass-7.3.svn
 
-PGM = r.stream.hollow
+PGM = v.fluvial.profiler
 
 include $(MODULE_TOPDIR)/include/Make/Script.make
 
 default: script
+

@@ -7,7 +7,7 @@ r.richdem gunittest suite. Run with, e.g.:
     python -m grass.gunittest.main --location <test-location> --location-type xy \
         testsuite/test_rivernetworkx_grass.py
 
-The build-network test additionally needs v.stream.network on the GRASS path.
+The build-network test additionally needs v.fluvial.network on the GRASS path.
 
 rivernetworkx must be importable (e.g. `pip install -e .` in the GRASS env).
 """
@@ -54,9 +54,9 @@ class TestSampleRaster(TestCase):
 
 
 class TestBuildNetwork(TestCase):
-    """Full read path: DEM -> streams -> v.stream.network -> build_network.
+    """Full read path: DEM -> streams -> v.fluvial.network -> build_network.
 
-    Requires v.stream.network on the GRASS path.
+    Requires v.fluvial.network on the GRASS path.
     """
 
     @classmethod
@@ -72,7 +72,7 @@ class TestBuildNetwork(TestCase):
         cls.runModule('r.stream.extract', elevation='dem', accumulation='accum',
                       stream_vector='streams', direction='draindir',
                       threshold=100, d8cut=0, overwrite=True)
-        cls.runModule('v.stream.network', map='streams')
+        cls.runModule('v.fluvial.network', map='streams')
 
     @classmethod
     def tearDownClass(cls):
@@ -157,7 +157,7 @@ class TestCompleteCatchment(TestCase):
         cls.runModule('r.stream.extract', elevation='demp', accumulation='accp',
                       stream_vector='streamsp', direction='ddp',
                       threshold=10, d8cut=0, overwrite=True)
-        cls.runModule('v.stream.network', map='streamsp')
+        cls.runModule('v.fluvial.network', map='streamsp')
 
     @classmethod
     def tearDownClass(cls):

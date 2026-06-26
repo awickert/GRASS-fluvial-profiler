@@ -8,7 +8,7 @@ and this project aims to follow [Semantic Versioning](https://semver.org/).
 ## [Unreleased]
 
 ### Added
-- **`r.stream.hollow`**: a new module that maps the **colluvial-to-fluvial
+- **`r.fluvial.hollow`**: a new module that maps the **colluvial-to-fluvial
   transition** (the downslope limit of colluvial hollows) from the
   slope&ndash;area break. It reads a deliberately over-extracted
   `r.stream.extract` network, fits a constrained broken-stick to the
@@ -24,11 +24,21 @@ and this project aims to follow [Semantic Versioning](https://semver.org/).
   slope&ndash;area break detector), `colluvial_fluvial_transition` (place points
   where drainage area first crosses A\*), and `read_stream_segments` (read a stream
   vector into edge records **without** a `tostream` column, so a raw
-  `r.stream.extract` network is usable directly &mdash; no `v.stream.network`
+  `r.stream.extract` network is usable directly &mdash; no `v.fluvial.network`
   linking step required).
 
+### Changed
+- **Renamed all modules to the `*.fluvial.*` namespace**, reflecting that they
+  form one fluvial-geomorphology suite built on the shared `rivernetworkx` core:
+  `v.stream.network` &rarr; `v.fluvial.network`, `v.stream.profiler` &rarr;
+  `v.fluvial.profiler`, `r.stream.hollow` &rarr; `r.fluvial.hollow`. (Breaking:
+  the previous `v.stream.*` names no longer exist. The `r.`/`v.` prefixes follow
+  data type; the `fluvial` family marks these geomorphic-analysis tools as
+  distinct from the generic `r.stream.*` network utilities they interoperate
+  with.)
+
 ### Fixed
-- **`v.stream.network`** no longer crashes on a real network that has both
+- **`v.fluvial.network`** no longer crashes on a real network that has both
   tributary confluences and an off-map outlet. The downstream-cat values come
   back from `vector_db_select` as strings, which made the `to_cat` column
   string-typed; assigning the integer `0` off-map sentinel into it then raised a

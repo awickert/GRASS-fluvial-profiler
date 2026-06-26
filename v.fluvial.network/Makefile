@@ -1,6 +1,6 @@
 MODULE_TOPDIR = ../..
 
-PGM = v.stream.network
+PGM = v.fluvial.network
 
 include $(MODULE_TOPDIR)/include/Make/Script.make
 

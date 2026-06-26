@@ -1,7 +1,7 @@
 #!/usr/bin/env python
 ############################################################################
 #
-# MODULE:       r.stream.hollow
+# MODULE:       r.fluvial.hollow
 #
 # AUTHOR(S):    Andrew Wickert
 #
@@ -128,12 +128,12 @@ def main():
     try:
         import rivernetworkx as rnx
     except ImportError:
-        gscript.fatal("r.stream.hollow requires the 'rivernetworkx' package "
+        gscript.fatal("r.fluvial.hollow requires the 'rivernetworkx' package "
                       "(pip install -e . in your GRASS Python environment).")
 
     # Read the over-extracted network with no topology requirement: the
     # slope-area break and the area-crossing placement are both per-segment and
-    # use flow accumulation, so v.stream.network linking is not needed.
+    # use flow accumulation, so v.fluvial.network linking is not needed.
     gscript.message("Reading network and sampling elevation/accumulation.")
     records = rnx.read_stream_segments(streams, elevation=elevation,
                                        accumulation=accumulation,

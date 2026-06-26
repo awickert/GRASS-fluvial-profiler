@@ -1,6 +1,6 @@
 <h2>DESCRIPTION</h2>
 
-<em>v.stream.network</em> populates the attribute table of a river network built by <a href="r.stream.extract"><em>r.stream.extract</em></a> with five new columns that define the nodes and links within a river network. These are (default names given):
+<em>v.fluvial.network</em> populates the attribute table of a river network built by <a href="r.stream.extract"><em>r.stream.extract</em></a> with five new columns that define the nodes and links within a river network. These are (default names given):
 <ul>
   <li><em>x1</em>, <em>y1</em>: upstream coordinates</li>
   <li><em>x2</em>, <em>y2</em>: downstream coordinates</li>
@@ -8,7 +8,7 @@
 </ul>
 
 <p>
-Optionally, with <b>json</b> set, <em>v.stream.network</em> also exports the
+Optionally, with <b>json</b> set, <em>v.fluvial.network</em> also exports the
 linked network as a <a href="https://networkx.org/">NetworkX</a> node-link JSON
 file: stream segments become graph edges, tributary junctions (and the off-map
 outlet, node 0) become nodes, and cumulative distance upstream of the outlet is
@@ -46,7 +46,7 @@ r.stream_extract(elevation=elevation, accumulation='drainageArea_m2', threshold=
 When <b>accumulation</b> is sampled for the <b>json</b> export, an incomplete
 catchment (one whose contributing area extends off the map) is detected: GRASS
 <em>r.watershed</em> marks such cells with <i>negative</i> flow accumulation, and
-if that reaches a channel head <em>v.stream.network</em> stops with an error
+if that reaches a channel head <em>v.fluvial.network</em> stops with an error
 (off-map upstream inflow is not yet supported). If the region truly contains the
 full basin &mdash; for example a drainage divide lying exactly on the region edge
 &mdash; pass the <b>-c</b> flag to treat such negatives as a boundary artifact and

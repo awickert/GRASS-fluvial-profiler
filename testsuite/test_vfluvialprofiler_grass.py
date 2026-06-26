@@ -1,13 +1,13 @@
 """
-GRASS-inclusive tests for v.stream.profiler (rebuilt on rivernetworkx).
+GRASS-inclusive tests for v.fluvial.profiler (rebuilt on rivernetworkx).
 
 Like the rivernetworkx GRASS suite, these need a live GRASS session and run
-locally (not in CI). They require v.stream.network AND v.stream.profiler on the
+locally (not in CI). They require v.fluvial.network AND v.fluvial.profiler on the
 GRASS addon path, and rivernetworkx importable. Run with, e.g.:
 
     MPLBACKEND=Agg PYTHONPATH=. GRASS_ADDON_BASE=/tmp/rnx-addon \
         grass --tmp-location XY --exec python \
-        testsuite/test_vstreamprofiler_grass.py
+        testsuite/test_vfluvialprofiler_grass.py
 """
 
 import json
@@ -19,7 +19,7 @@ from grass.gunittest.main import test
 
 
 class TestProfiler(TestCase):
-    """Full path: DEM -> streams -> v.stream.network -> v.stream.profiler."""
+    """Full path: DEM -> streams -> v.fluvial.network -> v.fluvial.profiler."""
 
     @classmethod
     def setUpClass(cls):
@@ -33,7 +33,7 @@ class TestProfiler(TestCase):
         cls.runModule('r.stream.extract', elevation='dem', accumulation='accum',
                       stream_vector='streams', direction='draindir',
                       threshold=100, d8cut=0, overwrite=True)
-        cls.runModule('v.stream.network', map='streams')
+        cls.runModule('v.fluvial.network', map='streams')
 
     @classmethod
     def tearDownClass(cls):
@@ -48,7 +48,7 @@ class TestProfiler(TestCase):
         js = os.path.join(tmp, 'prof.json')
         # no accumulation: the synthetic catchment drains off-map (negative
         # accumulation), covered by test_incomplete_catchment_errors.
-        self.assertModule('v.stream.profiler', cat=1, streams='streams',
+        self.assertModule('v.fluvial.profiler', cat=1, streams='streams',
                           elevation='dem', dx_target=5, outfile=txt, json=js)
         with open(txt) as f:
             lines = f.read().splitlines()
@@ -61,7 +61,7 @@ class TestProfiler(TestCase):
     def test_incomplete_catchment_errors(self):
         # sampling accumulation on this off-map-draining catchment must fail
         # (negative flow accumulation; issue #9)
-        self.assertModuleFail('v.stream.profiler', cat=1, streams='streams',
+        self.assertModuleFail('v.fluvial.profiler', cat=1, streams='streams',
                               elevation='dem', accumulation='accum')
 
     def test_requires_tostream(self):
@@ -70,7 +70,7 @@ class TestProfiler(TestCase):
         self.runModule('r.stream.extract', elevation='dem', accumulation='accum',
                        stream_vector='raw', direction='draindir_raw',
                        threshold=100, d8cut=0, overwrite=True)
-        self.assertModuleFail('v.stream.profiler', cat=1, streams='raw',
+        self.assertModuleFail('v.fluvial.profiler', cat=1, streams='raw',
                               elevation='dem')
 
 

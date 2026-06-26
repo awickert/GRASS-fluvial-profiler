@@ -1,7 +1,7 @@
 # Required add-ons
 #   r.stream.extract (now mainstream?)
-#   v.stream.network
-#   v.stream.profiler
+#   v.fluvial.network
+#   v.fluvial.profiler
 
 
 ######################
@@ -57,14 +57,14 @@ r.mapcalc "$nullmask = $DEM * 0 + 1" --o
 r.mapcalc "$accum = $accum * $nullmask" --o
 r.stream.extract elevation=$DEM accumulation=$accum threshold=$Athresh_km2 \
                  stream_vector=$streams d8cut=0 memory=$memory_Mb --o
-v.stream.network map=$streams
+v.fluvial.network map=$streams
 
 # This gives different slopes and drainage areas than expected -- perhaps SFD needed
 
 #!!!!!!!!!!!!!!!!!!!!
 start_segment_cat=135 # !!! USE GSFLOW--GRASS TOOLS TO HELP SELECT THIS!
 #!!!!!!!!!!!!!!!!!!!!
-v.stream.profiler cat=$start_segment_cat streams=$streams direction=upstream \
+v.fluvial.profiler cat=$start_segment_cat streams=$streams direction=upstream \
                   elevation=$DEM accumulation=$accum slope=$slope units=km2 \
                   plots=LongProfile,SlopeAccum,SlopeDistance,AccumDistance \
                   window=$window_meters dx_target=$dx_target \
