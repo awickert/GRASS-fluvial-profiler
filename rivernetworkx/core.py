@@ -57,35 +57,37 @@ def build_graph(edge_records, outlet=OFFMAP):
         cat       (int)    segment id            -> source node
         tostream  (int)    downstream-neighbor   -> target node (``outlet`` if off-map)
         x, y      (arrays) vertex coords, ordered upstream -> downstream
-        z, A      (arrays, optional) elevation / flow accumulation per vertex
+        <other>   (arrays, optional) any further per-vertex quantities, e.g.
+                  z (elevation), A (flow accumulation), slope -- carried through
+                  generically.
 
     In the returned DiGraph, nodes are tributary junctions (plus the outlet),
     per-vertex arrays live on edges, values shared at junctions live on nodes,
     and ``node['s']`` is cumulative distance upstream of the outlet (computed by
     a branching-safe breadth-first sweep).
     """
-    G = nx.DiGraph()
-    attr_names = ['x', 'y', 's_upstream', 's_downstream']
-    have_z = have_A = False
+    edge_records = list(edge_records)
 
+    # Per-vertex attributes are any record keys beyond the ids and raw geometry.
+    reserved = {'cat', 'tostream', 'x', 'y'}
+    extra = []
+    for rec in edge_records:
+        for key, value in rec.items():
+            if key not in reserved and value is not None and key not in extra:
+                extra.append(key)
+    attr_names = ['x', 'y', 's_upstream', 's_downstream'] + extra
+
+    G = nx.DiGraph()
     for rec in edge_records:
         x = np.asarray(rec['x'], dtype=float)
         y = np.asarray(rec['y'], dtype=float)
         s_down, s_up = segment_distances(x, y)
         attrs = {'x': x, 'y': y, 's_upstream': s_up, 's_downstream': s_down}
-        if rec.get('z') is not None:
-            attrs['z'] = np.asarray(rec['z'], dtype=float)
-            have_z = True
-        if rec.get('A') is not None:
-            attrs['A'] = np.asarray(rec['A'], dtype=float)
-            have_A = True
+        for key in extra:
+            if rec.get(key) is not None:
+                attrs[key] = np.asarray(rec[key], dtype=float)
         cat = int(rec['cat'])
         G.add_edge(cat, int(rec['tostream']), cat=cat, **attrs)
-
-    if have_z:
-        attr_names.append('z')
-    if have_A:
-        attr_names.append('A')
 
     _pull_first_to_parents(G, attr_names)
     _drop_downstream_endpoints(G, attr_names, outlet)
