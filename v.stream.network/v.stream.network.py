@@ -233,7 +233,11 @@ def main():
             # Must be just one cat
             cat = cats[0]
             to_idx = catx[catx == cat].index[0]
-            to_cat = dfnet.loc[to_idx]['cat']
+            # cat values come back from vector_db_select as strings; cast so the
+            # 'to_cat' column stays integer-typed and does not mix strings with
+            # the integer 0 off-map sentinel (which raises under pandas' string
+            # dtype on a real network that has both junctions and an outlet).
+            to_cat = int(dfnet.loc[to_idx]['cat'])
             dfnet.loc[fr_idx, 'to_cat'] = to_cat
             dfnet.loc[to_idx, 'fr_cat'] = fr_cat
 
