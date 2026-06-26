@@ -20,11 +20,20 @@ and this project aims to follow [Semantic Versioning](https://semver.org/).
   `accumulation=`, `accum_mult=`): it builds the NetworkX river-network graph,
   samples rasters along each segment, computes cumulative distance upstream of
   the outlet, and writes node-link JSON. This is the capability formerly
-  provided by the separate `v.stream.networkx` module.
+  provided by the separate `v.stream.networkx` module. Diverging (distributary
+  or braided) networks now stop with a clear error instead of a partial result.
+- **`v.stream.profiler`** rebuilt on `rivernetworkx` (it was non-functional on
+  current GRASS GIS and pandas). It now walks either downstream to the outlet or
+  upstream through all tributaries, samples elevation/accumulation/slope along
+  the channel, optionally densifies (`dx_target=`) and smooths (`window=`), and
+  outputs a text long-profile table and/or a node-link JSON sub-network
+  (`json=`). The previous branching bug is fixed by construction.
 
 ### Removed
 - **`v.stream.networkx`**: retired. Its sole job (build graph &rarr; JSON) is now
   the `json=` option on `v.stream.network`, backed by `rivernetworkx`.
+- **`v.stream.profiler/RiverNetwork.py`**: the bespoke network class is replaced
+  by the shared `rivernetworkx` library.
 
 ## [0.2.0] - 2026-06-25
 
