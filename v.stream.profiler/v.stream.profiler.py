@@ -158,21 +158,31 @@ def selected_paths(G, start, direction):
 
 def build_profile(records_by_cat, path, attrs, dx_target, window):
     """
-    Assemble one continuous profile along ``path``, optionally densify it to
-    ``dx_target`` and smooth its quantities over ``window``. Returns a dict of
-    1-D arrays: ``s`` (distance from the path's downstream end), ``x``, ``y``,
-    each attr, and ``<attr>_smoothed`` when ``window`` is set.
+    Assemble one continuous profile along ``path``. Densification and smoothing
+    are done **per segment** (never across tributary junctions): each segment is
+    resampled to ``dx_target`` and its quantities smoothed over ``window`` on
+    its own along-distance, then the segments are concatenated. Returns a dict
+    of 1-D arrays: ``s`` (distance from the path's downstream end), ``x``,
+    ``y``, each attr, and ``<attr>_smoothed`` when ``window`` is set.
+
+    In very dense networks some inter-junction reaches are too short to densify
+    or smooth meaningfully; those reaches simply come through near-raw, which is
+    accepted rather than smoothing across the junctions.
     """
-    prof = rnx.assemble_downstream_profile(records_by_cat, path, attrs=attrs)
-    if dx_target is not None:
-        carry = {name: prof[name] for name in (['x', 'y'] + list(attrs))}
-        prof['s'], dens = rnx.densify(prof['s'], carry, dx_target)
-        prof.update(dens)
-    if window is not None:
-        for name in attrs:
-            prof[name + '_smoothed'] = rnx.moving_average(prof['s'], prof[name],
-                                                          window)
-    return prof
+    processed = {}
+    for cat in path:
+        rec = dict(records_by_cat[cat])
+        if dx_target is not None:
+            s_down, _ = rnx.segment_distances(rec['x'], rec['y'])
+            carry = {name: rec[name] for name in (['x', 'y'] + list(attrs))}
+            _, dens = rnx.densify(s_down, carry, dx_target)
+            rec.update(dens)
+        if window is not None:
+            for name, arr in rnx.smooth_segment(rec, attrs, window).items():
+                rec[name + '_smoothed'] = arr
+        processed[cat] = rec
+    carry = list(attrs) + ([a + '_smoothed' for a in attrs] if window else [])
+    return rnx.assemble_downstream_profile(processed, path, attrs=carry)
 
 
 ###############
