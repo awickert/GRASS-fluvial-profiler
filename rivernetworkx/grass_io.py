@@ -268,6 +268,20 @@ def read_stream_vector(streams, elevation=None, accumulation=None, slope=None,
                   "(enhancement: issue #9)"
                   % ', '.join(str(c) for c in bad))
 
+    # Elevation/slope with no data under a channel is less critical than
+    # accumulation -- it stays NaN rather than masking a real value -- and slope
+    # is legitimately NULL on region-boundary cells (r.slope.area needs
+    # neighbours), so warn rather than error, but don't let the gap be silent.
+    from grass.script import warning
+    for name, label in (('z', 'elevation'), ('slope', 'slope')):
+        gap = [rec['cat'] for rec in records
+               if rec.get(name) is not None
+               and np.isnan(np.asarray(rec[name], dtype=float)).any()]
+        if gap:
+            warning("%s raster has no data at channel cell(s) on segment(s) %s; "
+                    "those points are NaN."
+                    % (label, ', '.join(str(c) for c in gap)))
+
     # With off-map inflow ruled out, any remaining negative accumulation is
     # r.watershed's conservative boundary flag at the outlet, whose MAGNITUDE is
     # the true drainage area. Use the magnitude so the outlet (largest-area)

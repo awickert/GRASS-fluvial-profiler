@@ -77,7 +77,7 @@ class TestBuildNetwork(TestCase):
     @classmethod
     def tearDownClass(cls):
         cls.runModule('g.remove', flags='f', type='raster',
-                      name='dem,accum,draindir,accum_holes')
+                      name='dem,accum,draindir,accum_holes,dem_holes')
         cls.runModule('g.remove', flags='f', type='vector', name='streams')
         cls.del_temp_region()
 
@@ -120,6 +120,15 @@ class TestBuildNetwork(TestCase):
         with self.assertRaises(SystemExit):
             rnx.build_network('streams', elevation='dem',
                               accumulation='accum_holes', assume_complete=True)
+
+    def test_nodata_elevation_warns_not_errors(self):
+        # NULL elevation under part of the network is a warning, not a fatal
+        # (unlike accumulation): it builds, leaving NaN at the missing cells.
+        self.runModule('r.mapcalc',
+                       expression='dem_holes = if(y() > 50, null(), dem)',
+                       overwrite=True)
+        G = rnx.build_network('streams', elevation='dem_holes')
+        self.assertGreater(G.number_of_nodes(), 1)
 
     def test_elevation_sampled(self):
         G = rnx.build_network('streams', elevation='dem')
