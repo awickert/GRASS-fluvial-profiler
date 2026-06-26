@@ -5,6 +5,36 @@ All notable changes to this project are documented in this file.
 The format is based on [Keep a Changelog](https://keepachangelog.com/en/1.1.0/),
 and this project aims to follow [Semantic Versioning](https://semver.org/).
 
+## [Unreleased]
+
+### Added
+- **`rivernetworkx`**: a new importable Python package (pure NetworkX, no GRASS)
+  that single-sources the river-network logic — graph construction
+  (`build_network`/`build_graph`), raster sampling, breadth-first traversal,
+  cumulative-distance accumulation, and node-link JSON I/O. The GRASS modules
+  are now thin consumers of it, and the same representation is reusable outside
+  GRASS (e.g. the GRLP coupling).
+
+### Changed
+- **`v.stream.network`** gains an optional `json=` export (with `elevation=`,
+  `accumulation=`, `accum_mult=`): it builds the NetworkX river-network graph,
+  samples rasters along each segment, computes cumulative distance upstream of
+  the outlet, and writes node-link JSON. This is the capability formerly
+  provided by the separate `v.stream.networkx` module. Diverging (distributary
+  or braided) networks now stop with a clear error instead of a partial result.
+- **`v.stream.profiler`** rebuilt on `rivernetworkx` (it was non-functional on
+  current GRASS GIS and pandas). It now walks either downstream to the outlet or
+  upstream through all tributaries, samples elevation/accumulation/slope along
+  the channel, optionally densifies (`dx_target=`) and smooths (`window=`), and
+  outputs a text long-profile table and/or a node-link JSON sub-network
+  (`json=`). The previous branching bug is fixed by construction.
+
+### Removed
+- **`v.stream.networkx`**: retired. Its sole job (build graph &rarr; JSON) is now
+  the `json=` option on `v.stream.network`, backed by `rivernetworkx`.
+- **`v.stream.profiler/RiverNetwork.py`**: the bespoke network class is replaced
+  by the shared `rivernetworkx` library.
+
 ## [0.2.0] - 2026-06-25
 
 First release since 2017. It marks the modernization of the toolkit for current

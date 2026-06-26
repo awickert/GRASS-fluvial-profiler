@@ -1,0 +1,24 @@
+[build-system]
+requires = ["setuptools>=61"]
+build-backend = "setuptools.build_meta"
+
+[project]
+name = "rivernetworkx"
+version = "0.3.0.dev0"
+description = "River-network construction, traversal, and I/O on NetworkX, for the GRASS fluvial toolkit"
+readme = "README.md"
+requires-python = ">=3.9"
+license = {text = "GPL-3.0-or-later"}
+authors = [{name = "Andrew D. Wickert"}]
+dependencies = ["numpy", "networkx"]
+
+[project.urls]
+Homepage = "https://github.com/awickert/GRASS-fluvial-profiler"
+
+[tool.setuptools]
+packages = ["rivernetworkx"]
+
+[tool.pytest.ini_options]
+# Pure, GRASS-free tests only. The GRASS-inclusive suite under testsuite/ runs
+# locally via `python -m grass.gunittest.main` in a GRASS session (not in CI).
+testpaths = ["tests"]

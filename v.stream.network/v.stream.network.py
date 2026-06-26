@@ -78,6 +78,32 @@
 #%  required : no
 #%end
 
+#%option G_OPT_R_INPUT
+#%  key: elevation
+#%  label: Topography (DEM) to sample along the network for JSON export
+#%  required: no
+#%end
+
+#%option G_OPT_R_INPUT
+#%  key: accumulation
+#%  label: Flow-accumulation raster to sample along the network for JSON export
+#%  required: no
+#%end
+
+#%option
+#%  key: accum_mult
+#%  type: double
+#%  label: Multiplier to convert flow accumulation to your chosen unit
+#%  answer: 1
+#%  required: no
+#%end
+
+#%option G_OPT_F_OUTPUT
+#%  key: json
+#%  label: Output NetworkX node-link JSON of the built network
+#%  required: no
+#%end
+
 ##################
 # IMPORT MODULES #
 ##################
@@ -187,16 +213,17 @@ def main():
         caty = dfnet[row[y2] == dfnet[y1]].cat
         cats = list(set(catx).intersection(set(caty)))
         if ( len(cats) == 0):
-            dfnet.loc[fr_idx, 'to_cat'] = -1
+            dfnet.loc[fr_idx, 'to_cat'] = 0
             continue
         elif len(cats) > 1:
-            print("Diverging graph!")
-            # Should probably exit condition here
-            print(i)
-            print(row)
-            print(catx)
-            print(caty)
-            break
+            gscript.fatal(
+                "Diverging network at segment cat=%s: its downstream end "
+                "connects to multiple segments (cats=%s). v.stream.network "
+                "represents one downstream link per segment (a tree / "
+                "converging network), so distributary or braided networks are "
+                "not supported. Inspect the r.stream.extract output near this "
+                "segment." % (int(fr_cat),
+                              ', '.join(str(int(c)) for c in cats)))
         else:
             # Must be just one cat
             cat = cats[0]
@@ -224,6 +251,26 @@ def main():
 
     gscript.message('Drainage topology built. Check "tostream" column for the downstream cat.')
     gscript.message('A cat value of 0 indicates the downstream-most segment.')
+
+    # Optional: export the built network as NetworkX node-link JSON. The graph
+    # itself (read of the just-written tostream, raster sampling, BFS distances,
+    # JSON I/O) lives in the shared rivernetworkx library; this module is a thin
+    # consumer of it. Imported lazily so the basic tostream job never depends on
+    # rivernetworkx being installed.
+    if options['json']:
+        try:
+            import rivernetworkx as rnx
+        except ImportError:
+            gscript.fatal("json= export requires the 'rivernetworkx' package "
+                          "(pip install -e . in your GRASS Python environment).")
+        elevation = options['elevation'] or None
+        accumulation = options['accumulation'] or None
+        accum_mult = float(options['accum_mult'])
+        gscript.message("Building network graph and exporting JSON.")
+        G = rnx.build_network(streams, elevation=elevation,
+                              accumulation=accumulation, accum_mult=accum_mult)
+        rnx.export_json(G, options['json'])
+        gscript.message("Export complete: %s" % options['json'])
 
 if __name__ == "__main__":
     main()

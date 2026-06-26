@@ -5,12 +5,13 @@
 #
 # AUTHOR(S):    Andrew Wickert
 #
-# PURPOSE:      Post-process a river network exported by v.stream.networkx:
-#               despike and smooth the elevations along each segment, then
-#               coarsen (resample) the network, and re-export it as JSON.
+# PURPOSE:      Post-process a river network exported by v.stream.network
+#               (json= option): despike and smooth the elevations along each
+#               segment, then coarsen (resample) the network, and re-export
+#               it as JSON.
 #
-#               This is the "stage 2" step between v.stream.networkx (which
-#               extracts the network from a DEM) and a downstream model such
+#               This is the "stage 2" step between v.stream.network (which
+#               extracts and links the network from a DEM) and a downstream model such
 #               as GRLP (which evolves its long profiles). Raw DEM-sampled
 #               elevations are noisy and densely sampled; this cleans and
 #               thins them while preserving the network topology.
@@ -27,10 +28,11 @@
 #   Wickert, A. D., and F. McNab (2025), Simulating Geomorphic Evolution
 #   Through River Networks, EP23D-1702, AGU Fall Meeting, New Orleans, LA, USA.
 #
-# NOTE: bfs_upward(), _to_jsonable(), and make_json_safe_graph() are duplicated
-# from v.stream.networkx. A GRASS addon cannot be imported as a library (it
-# runs gscript.parser() on import), so these small helpers are vendored here.
-# A future shared, importable helper module should consolidate them.
+# NOTE: bfs_upward(), _to_jsonable(), and make_json_safe_graph() are also
+# provided by the importable `rivernetworkx` package (as bfs_upward,
+# export_json/load_json, make_json_safe). They are kept vendored here so this
+# example stays self-contained and runnable without installing rivernetworkx;
+# import them from rivernetworkx instead if you prefer a single source.
 
 import argparse
 import copy
@@ -60,7 +62,7 @@ def bfs_upward(G, start):
 
 def set_outlet_elevations(G, outlet_drop=4e-4):
     """
-    v.stream.networkx exports outlet (off-map) nodes with z = nan, because
+    v.stream.network exports outlet (off-map) nodes with z = nan, because
     they lie beyond the domain. If left as nan, the smoothing step propagates
     the nan upstream through the network. Replace each nan outlet elevation
     with the lowest channel elevation entering that node, dropped by
@@ -389,10 +391,10 @@ def plot_long_profiles(G, outlet=0):
 
 def main():
     parser = argparse.ArgumentParser(
-        description="Despike, smooth, and coarsen a v.stream.networkx JSON "
+        description="Despike, smooth, and coarsen a v.stream.network JSON "
                     "river network, then re-export it as JSON."
     )
-    parser.add_argument("input", help="input JSON from v.stream.networkx")
+    parser.add_argument("input", help="input JSON from v.stream.network json=")
     parser.add_argument("output", help="output (cleaned, coarsened) JSON")
     parser.add_argument("--outlet", type=int, default=0,
                         help="outlet node id (default: 0)")
