@@ -1,0 +1,124 @@
+<h2>DESCRIPTION</h2>
+
+<em>r.stream.hollow</em> maps the <b>colluvial-to-fluvial transition</b> &mdash;
+the downslope limit of <b>colluvial hollows</b> (the unchanneled,
+colluvium-mantled zero-order valleys at the head of the drainage network)
+&mdash; from the <b>slope&ndash;area break</b>. In log&ndash;log
+slope&ndash;area space, hillslopes (and colluvial hollows) have a slope that is
+roughly independent of drainage area, while fluvial channels are concave
+(<em>S</em> &asymp; <em>k</em>&nbsp;<em>A</em><sup>&minus;&theta;</sup>). The
+rollover between the two regimes marks where the landscape crosses from
+hillslope/colluvial to fluvial process dominance.
+
+<p>
+The module:
+</p>
+<ol>
+  <li>reads a deliberately <b>over-extracted</b> stream network (so it reaches
+      upslope past the hollows), sampling elevation and flow accumulation
+      along it;</li>
+  <li>computes per-segment, flowline-smoothed channel slope and pairs it with
+      drainage area;</li>
+  <li>fits a continuous, constrained <b>broken-stick</b> to the
+      slope&ndash;area cloud (a flat hillslope/colluvial limb and a power-law
+      fluvial limb joined at a knot), whose knot is the colluvial-to-fluvial
+      transition drainage area <em>A</em>*;</li>
+  <li>places a transition point where each channel's drainage area first crosses
+      <em>A</em>* (the hollow gives way to a fluvial channel). Flow accumulation
+      already integrates the upstream area, so no network topology is needed.</li>
+</ol>
+
+<p>
+The analysis lives in the shared <a href="https://networkx.org/">NetworkX</a>-based
+<em>rivernetworkx</em> library; this module is a thin GRASS wrapper over it.
+</p>
+
+<h2>NOTES</h2>
+
+<p>
+This maps a <b>process boundary</b> &mdash; where fluvial processes begin to
+dominate over hillslope/colluvial ones &mdash; which is a complete and
+reproducible quantity, and is the appropriate upstream limit of the
+<em>fluvial</em> domain (e.g. for seeding a fluvial long-profile model). It is
+<em>not</em> a field channel head: a morphological channel head, such as that of
+Clubb et al. (2014)'s DrEICH method, lies <em>upslope</em> of this transition
+(at smaller drainage area), within the colluvial hollow. The two are related but
+distinct; the distance between them is the extent of the colluvial channel
+reach.
+</p>
+
+<p>
+<b>streams</b> must be over-extracted: run
+<a href="r.stream.extract"><em>r.stream.extract</em></a> with a small
+<b>threshold</b> so the network over-shoots upslope past the hollows, placing
+the slope&ndash;area rollover <em>within</em> the extracted network. The
+<b>accumulation</b> raster (e.g. from
+<a href="r.watershed"><em>r.watershed</em></a>) must cover the whole network.
+</p>
+
+<p>
+Per-cell slope is noisy; set <b>window</b> to a flowline smoothing distance (map
+units; a few tens of metres for metre-scale LiDAR) so the slope is smoothed
+along each segment before the break is fit. <b>min_slope</b> drops near-flat
+valley cells (numerically zero slope) that would otherwise bias the fit, and
+<b>max_area</b> can exclude large downstream trunk reaches.
+</p>
+
+<p>
+The fitted <em>A</em>* is a single, basin-wide transition area, which assumes a
+uniform process domain. In strongly heterogeneous terrain the transition is
+better described by a slope&ndash;area threshold that varies with local slope;
+a per-flowline variant is a possible future refinement.
+</p>
+
+<p>
+If the region does not contain the full basin (a clipped sub-area), channels
+entering from off-map carry negative <em>r.watershed</em> accumulation at their
+heads; pass <b>-c</b> to treat that as a boundary artifact rather than off-map
+inflow.
+</p>
+
+<h2>EXAMPLE</h2>
+
+<div class="code"><pre>
+# Flow routing and a deliberately dense (over-extracted) network
+r.watershed -s elevation=dem accumulation=accum drainage=draindir
+r.stream.extract elevation=dem accumulation=accum threshold=100 \
+    stream_vector=streams_dense stream_raster=streams_rast
+
+# Colluvial-to-fluvial transition from the slope-area break
+r.stream.hollow elevation=dem accumulation=accum streams=streams_dense \
+    output=hollow_transition window=30 min_slope=0.0001
+</pre></div>
+
+<h2>REFERENCES</h2>
+
+<p>
+Montgomery, D. R., and E. Foufoula-Georgiou (1993), Channel network source
+representation using digital elevation models, <em>Water Resources Research</em>,
+29(12), 3925&ndash;3934.
+</p>
+<p>
+Stock, J. D., and W. E. Dietrich (2003), Valley incision by debris flows:
+Evidence of a topographic signature, <em>Water Resources Research</em>, 39(4),
+1089, doi:10.1029/2001WR001057.
+</p>
+<p>
+Clubb, F. J., S. M. Mudd, D. T. Milodowski, M. D. Hurst, and L. J. Slater
+(2014), Objective extraction of channel heads from high-resolution topographic
+data, <em>Water Resources Research</em>, 50, 4283&ndash;4304,
+doi:10.1002/2013WR015167.
+</p>
+
+<h2>SEE ALSO</h2>
+
+<em>
+<a href="r.stream.extract">r.stream.extract</a>,
+<a href="r.watershed">r.watershed</a>,
+<a href="v.stream.network">v.stream.network</a>,
+<a href="v.stream.profiler">v.stream.profiler</a>
+</em>
+
+<h2>AUTHOR</h2>
+
+Andrew D. Wickert
