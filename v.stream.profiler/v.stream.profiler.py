@@ -179,8 +179,8 @@ def build_profile(records_by_cat, path, attrs, dx_target, window):
         rec = dict(records_by_cat[cat])
         if dx_target is not None:
             s_down, _ = rnx.segment_distances(rec['x'], rec['y'])
-            carry = {name: rec[name] for name in (['x', 'y'] + list(attrs))}
-            _, dens = rnx.densify(s_down, carry, dx_target)
+            dens_in = {name: rec[name] for name in (['x', 'y'] + list(attrs))}
+            _, dens = rnx.densify(s_down, dens_in, dx_target)
             rec.update(dens)
         if window is not None:
             # !!!! TODO: switches to smooth z / slope / accumulation
@@ -188,8 +188,8 @@ def build_profile(records_by_cat, path, attrs, dx_target, window):
             for name, arr in rnx.smooth_segment(rec, attrs, window).items():
                 rec[name + '_smoothed'] = arr
         processed[cat] = rec
-    carry = list(attrs) + ([a + '_smoothed' for a in attrs] if window else [])
-    return rnx.assemble_downstream_profile(processed, path, attrs=carry)
+    out_attrs = list(attrs) + ([a + '_smoothed' for a in attrs] if window else [])
+    return rnx.assemble_downstream_profile(processed, path, attrs=out_attrs)
 
 
 ###############
