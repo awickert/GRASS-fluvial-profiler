@@ -167,11 +167,17 @@ def _region_over(geometry, align):
     xs = np.concatenate([gx for gx, _ in geometry.values()])
     ys = np.concatenate([gy for _, gy in geometry.values()])
     saved = _region()
+    pad_ns, pad_ew = float(saved['nsres']), float(saved['ewres'])
     try:
-        run_command('g.region', n=float(ys.max()), s=float(ys.min()),
-                    e=float(xs.max()), w=float(xs.min()), align=align,
-                    quiet=True)
-        run_command('g.region', grow=1, quiet=True)
+        # Pad the network bbox by a cell on each side: this both gives a
+        # one-cell margin (so edge vertices sample cleanly) and guarantees a
+        # non-degenerate extent for a perfectly straight, single-row or
+        # single-column network -- a bare n==s / e==w would make g.region
+        # reject the call. align= snaps the padded bounds back to the grid.
+        run_command('g.region',
+                    n=float(ys.max()) + pad_ns, s=float(ys.min()) - pad_ns,
+                    e=float(xs.max()) + pad_ew, w=float(xs.min()) - pad_ew,
+                    align=align, quiet=True)
         yield
     finally:
         run_command('g.region', n=saved['n'], s=saved['s'], e=saved['e'],
