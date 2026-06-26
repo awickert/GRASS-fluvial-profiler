@@ -12,6 +12,7 @@ The build-network test additionally needs v.stream.network on the GRASS path.
 rivernetworkx must be importable (e.g. `pip install -e .` in the GRASS env).
 """
 
+import numpy as np
 import networkx as nx
 
 from grass.gunittest.case import TestCase
@@ -138,6 +139,13 @@ class TestCompleteCatchment(TestCase):
         G = rnx.build_network('streamsp', elevation='demp', accumulation='accp')
         self.assertGreater(G.number_of_nodes(), 1)
         self.assertIn(0, G.nodes)
+        # drainage area is returned as a positive magnitude (outlet boundary
+        # cells, negative in r.watershed, are recovered via abs)
+        edge_A = np.concatenate([np.asarray(d['A'], float)
+                                 for _, _, d in G.edges(data=True) if 'A' in d])
+        edge_A = edge_A[np.isfinite(edge_A)]
+        self.assertTrue((edge_A >= 0).all())
+        self.assertGreater(edge_A.max(), 0)
 
 
 if __name__ == '__main__':

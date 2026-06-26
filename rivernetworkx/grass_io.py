@@ -233,6 +233,14 @@ def read_stream_vector(streams, elevation=None, accumulation=None, slope=None,
               "yet supported (enhancement: issue #9). Use a region/DEM that "
               "fully contains the catchment, or omit accumulation."
               % ', '.join(str(c) for c in bad))
+
+    # With off-map inflow ruled out, any remaining negative accumulation is
+    # r.watershed's conservative boundary flag at the outlet, whose MAGNITUDE is
+    # the true drainage area. Use the magnitude so the outlet (largest-area)
+    # cells survive A>0 filtering in slope-area analysis, plots, and the export.
+    for rec in records:
+        if rec.get('A') is not None:
+            rec['A'] = np.abs(np.asarray(rec['A'], dtype=float))
     return records
 
 
