@@ -7,6 +7,21 @@ and this project aims to follow [Semantic Versioning](https://semver.org/).
 
 ## [Unreleased]
 
+### Added
+- **`r.stream.channelheads`**: a new module that locates **fluvial channel
+  heads** from the slope&ndash;area break. It reads a deliberately
+  over-extracted `r.stream.extract` network, fits a constrained broken-stick to
+  the flowline-smoothed slope&ndash;area cloud (a flat hillslope limb and a
+  power-law fluvial limb), and places a head where each channel's drainage area
+  first crosses the break A\*. This finds *fluvial-initiation* heads (a complete,
+  reproducible set), not Clubb et al. (2014)'s DrEICH field heads (a planned
+  second method). Validated against Clubb's 53 mapped heads at Mid Bailey Run, OH.
+- **`rivernetworkx`** gains `fit_sa_break` (the constrained broken-stick
+  slope&ndash;area break detector), `channel_head_points` (place heads at the
+  A\* area crossing), and `read_stream_segments` (read a stream vector into edge
+  records **without** a `tostream` column, so a raw `r.stream.extract` network is
+  usable directly &mdash; no `v.stream.network` linking step required).
+
 ### Fixed
 - **`v.stream.network`** no longer crashes on a real network that has both
   tributary confluences and an off-map outlet. The downstream-cat values come
