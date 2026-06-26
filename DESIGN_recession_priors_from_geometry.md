@@ -33,6 +33,7 @@ distance computation feeds the geomorphic and the hydrologic uses alike.
 - **`v.stream.networkx`** → a NetworkX directed graph with per-segment elevation,
   accumulation, and along-channel distances; cumulative distance upstream of the
   outlet; JSON export.
+  *(v0.3.0: `v.stream.networkx` retired — this build-graph + JSON capability is now `v.stream.network json=`, backed by the `rivernetworkx` library.)*
 - **`v.stream.profiler`** → long profiles and **slope–area** diagrams.
 
 This is the geomorphic toolset (profiles, steepness/χ, knickpoints, slope–area)
