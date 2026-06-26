@@ -315,7 +315,11 @@ def main():
             seen.update(int(c) for c in prof['cat'])
             if mask.any():
                 rows.append(block[mask])
-        np.savetxt(outfile, np.vstack(rows), fmt='%s',
+        # cat is an integer segment id (the join key back to the vector); the
+        # rest are floats. np.column_stack upcast cat to float, so format the
+        # first column as %d to avoid writing it as e.g. "37.0".
+        fmt = ['%d'] + ['%s'] * (len(cols) - 1)
+        np.savetxt(outfile, np.vstack(rows), fmt=fmt,
                    header=' '.join(cols), comments='')
         gscript.message("Wrote long-profile table: %s" % outfile)
 
