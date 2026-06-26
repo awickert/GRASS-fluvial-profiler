@@ -21,8 +21,12 @@ from .core import (
     load_json,
 )
 
-# grass_io requires a GRASS session; keep the package importable without one.
-try:
-    from .grass_io import read_stream_vector, build_network  # noqa: F401
-except Exception:
-    pass
+# grass_io imports GRASS lazily (inside its reader functions), so this works
+# without a GRASS session; build_network/read_stream_vector only need GRASS when
+# actually called. sample_raster and assemble_records are pure.
+from .grass_io import (  # noqa: F401
+    sample_raster,
+    assemble_records,
+    read_stream_vector,
+    build_network,
+)
