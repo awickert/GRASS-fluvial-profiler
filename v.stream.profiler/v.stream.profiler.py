@@ -255,19 +255,22 @@ def main():
 
     # Plots
     smooth = window is not None
+
+    def pick(prof, name):
+        """The smoothed series if a window was set, else the raw one."""
+        return prof[name + '_smoothed'] if smooth else prof[name]
+
     if 'LongProfile' in plots and elevation:
         plt.figure()
         for prof in profiles:
-            z = prof['z_smoothed'] if smooth else prof['z']
-            plt.plot(prof['s'] / 1000., z, 'k-', linewidth=2)
+            plt.plot(prof['s'] / 1000., pick(prof, 'z'), 'k-', linewidth=2)
         plt.xlabel('Distance from mouth [km]', fontsize=16)
         plt.ylabel('Elevation [m]', fontsize=16)
         plt.tight_layout()
     if 'SlopeAccum' in plots and slope and accumulation:
         plt.figure()
         for prof in profiles:
-            S = prof['slope_smoothed'] if smooth else prof['slope']
-            A = prof['A_smoothed'] if smooth else prof['A']
+            S, A = pick(prof, 'slope'), pick(prof, 'A')
             keep = A > 0
             plt.loglog(A[keep], S[keep], 'k.', alpha=.5)
         plt.xlabel(accum_label, fontsize=16)
@@ -276,15 +279,14 @@ def main():
     if 'SlopeDistance' in plots and slope:
         plt.figure()
         for prof in profiles:
-            S = prof['slope_smoothed'] if smooth else prof['slope']
-            plt.plot(prof['s'] / 1000., S, 'k-', linewidth=2)
+            plt.plot(prof['s'] / 1000., pick(prof, 'slope'), 'k-', linewidth=2)
         plt.xlabel('Distance from mouth [km]', fontsize=16)
         plt.ylabel('Slope [$-$]', fontsize=16)
         plt.tight_layout()
     if 'AccumDistance' in plots and accumulation:
         plt.figure()
         for prof in profiles:
-            A = prof['A_smoothed'] if smooth else prof['A']
+            A = pick(prof, 'A')
             keep = A > 0
             plt.plot(prof['s'][keep] / 1000., A[keep], 'k.', alpha=.5)
         plt.xlabel('Distance from mouth [km]', fontsize=16)
