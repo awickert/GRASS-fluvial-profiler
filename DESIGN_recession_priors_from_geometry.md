@@ -29,12 +29,12 @@ distance computation feeds the geomorphic and the hydrologic uses alike.
 
 - **`r.stream.extract`** (upstream of GFP) → the stream raster + vector +
   flow-direction (`draindir`).
-- **`v.stream.network`** → topology (`tostream`, node coordinates).
+- **`v.fluvial.network`** → topology (`tostream`, node coordinates).
 - **`v.stream.networkx`** → a NetworkX directed graph with per-segment elevation,
   accumulation, and along-channel distances; cumulative distance upstream of the
   outlet; JSON export.
-  *(v0.3.0: `v.stream.networkx` retired — this build-graph + JSON capability is now `v.stream.network json=`, backed by the `rivernetworkx` library.)*
-- **`v.stream.profiler`** → long profiles and **slope–area** diagrams.
+  *(v0.3.0: `v.stream.networkx` retired — this build-graph + JSON capability is now `v.fluvial.network json=`, backed by the `rivernetworkx` library.)*
+- **`v.fluvial.profiler`** → long profiles and **slope–area** diagrams.
 
 This is the geomorphic toolset (profiles, steepness/χ, knickpoints, slope–area)
 **and** it is what *defines the channel network extent* — which is the geometry
@@ -54,7 +54,7 @@ hillslopes*. Two pieces:
    transition).** `L` depends entirely on the channel-network *extent*, which
    should be a **process threshold**, not an arbitrary accumulation cutoff:
    a slope–area (`A·S^θ`) channel-initiation criterion (Montgomery & Dietrich
-   1988/1992; Tarboton). GFP already computes slope–area in `v.stream.profiler`,
+   1988/1992; Tarboton). GFP already computes slope–area in `v.fluvial.profiler`,
    so it is positioned to set this physically. **This is the README's
    "hillslope-to-fluvial transition (not yet)" item — and it is the shared
    linchpin: it defines the channel extent for the geomorphic analysis *and*
@@ -66,8 +66,8 @@ hillslopes*. Two pieces:
 DEM
  └─ r.watershed                         → accumulation, drainage direction
  └─ r.stream.extract                    → streams (raster+vector), draindir
-       └─ [channel-head threshold]       ← slope–area (v.stream.profiler) — sets extent
- ├─ v.stream.network / v.stream.networkx → channel graph        (GEOMORPHIC track)
+       └─ [channel-head threshold]       ← slope–area (v.fluvial.profiler) — sets extent
+ ├─ v.fluvial.network / v.stream.networkx → channel graph        (GEOMORPHIC track)
  └─ r.stream.distance                    → L (flow dist), drop → β   (per cell)
  + r.in.polaris                          → ksat, theta_s/theta_r, ... (per cell ± p5/p95)
        └─ (texture→Ksat pedotransfer where outside CONUS / SoilGrids)
@@ -106,7 +106,7 @@ The same channel network and channel-head threshold serve two tracks:
 
 | Track | Uses | Existing GFP pieces | New pieces |
 |---|---|---|---|
-| **Geomorphic** | profiles, k_sn / χ steepness, knickpoints, slope–area, drainage density, landscape-evolution setup | `v.stream.network(x)`, `v.stream.profiler` | (steepness/χ are on the README roadmap) |
+| **Geomorphic** | profiles, k_sn / χ steepness, knickpoints, slope–area, drainage density, landscape-evolution setup | `v.fluvial.network(x)`, `v.fluvial.profiler` | (steepness/χ are on the README roadmap) |
 | **Hydrologic** | hillslope `L`/`β` field → recession `τ, b` priors | slope–area (defines channels) | wire `r.stream.distance`; channel-head module; prior-export |
 
 So bringing both "hydrologic + geomorphic research into the pipeline" for **v1.0**
