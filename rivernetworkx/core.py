@@ -158,10 +158,9 @@ def _accumulate_distance(G, outlet):
     """
     for n in bfs_upward(G, outlet):
         for parent, child in G.in_edges(n):
-            G.nodes[parent]['s'] = [G.nodes[child]['s'][0]
-                                    + G.nodes[parent]['s_upstream'][0]]
-            G.edges[parent, child]['s'] = (G.nodes[child]['s'][0]
-                                           + G.edges[parent, child]['s_upstream'])
+            child_s = G.nodes[child]['s'][0]
+            G.nodes[parent]['s'] = [child_s + G.nodes[parent]['s_upstream'][0]]
+            G.edges[parent, child]['s'] = child_s + G.edges[parent, child]['s_upstream']
 
 
 #############
