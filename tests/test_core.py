@@ -100,6 +100,39 @@ def test_moving_average():
     assert np.isclose(sm2[0], 2.0)
 
 
+def test_channel_slope():
+    # z falls 6 -> 0 over s 0 -> 20: uniform descending slope of 0.3
+    S = rnx.channel_slope([0.0, 10.0, 20.0], [6.0, 3.0, 0.0])
+    assert np.allclose(S, 0.3)
+    # too-short segment -> NaN
+    assert np.all(np.isnan(rnx.channel_slope([0.0], [5.0])))
+
+
+def test_smooth_segment():
+    rec = {"x": [0.0, 0.0, 0.0], "y": [20.0, 10.0, 0.0],
+           "z": [0.0, 10.0, 0.0]}  # a spike at the middle vertex
+    # window/2 = 25 >= the 20-long segment, so every vertex averages all three
+    out = rnx.smooth_segment(rec, ("z",), window=50.0)
+    assert np.allclose(out["z"], 10.0 / 3.0)
+
+
+def test_slope_area():
+    # one segment, z 2->0 over s 0->20 (S=0.1), area 10->20
+    recs = [{"cat": 1, "tostream": 0, "x": [0.0, 0.0], "y": [20.0, 0.0],
+             "z": [2.0, 0.0], "A": [10.0, 20.0]}]
+    A, S = rnx.slope_area(recs)
+    assert np.allclose(S, 0.1)
+    assert np.allclose(A, [10.0, 20.0])
+    logA, logS = rnx.slope_area(recs, log=True)
+    assert np.allclose(logA, np.log10([10.0, 20.0]))
+    assert np.allclose(logS, np.log10([0.1, 0.1]))
+    # nonpositive area/slope dropped in log space
+    recs2 = [{"cat": 1, "tostream": 0, "x": [0.0, 0.0], "y": [20.0, 0.0],
+              "z": [0.0, 0.0], "A": [-1.0, 5.0]}]  # S=0 and one A<0
+    logA2, logS2 = rnx.slope_area(recs2, log=True)
+    assert len(logA2) == 0
+
+
 def test_json_roundtrip(tmp_path=None):
     G = rnx.build_graph(RECORDS)
     path = os.path.join(tmp_path or "/tmp", "rnx_roundtrip.json")

@@ -278,6 +278,68 @@ def moving_average(s, y, window):
     return out
 
 
+def smooth_segment(record, attrs, window):
+    """
+    Per-vertex moving-average smoothing of each name in ``attrs`` within a
+    single segment ``record``, over the segment's own along-distance.
+
+    Segments are the reaches between tributary junctions, so smoothing here
+    never crosses a junction: natural slope/area breaks at confluences are
+    preserved, and a segment's smoothed values are independent of which
+    flow path it belongs to. Returns ``{attr: smoothed array}``.
+    """
+    s_down, _ = segment_distances(record['x'], record['y'])
+    return {a: moving_average(s_down, np.asarray(record[a], dtype=float), window)
+            for a in attrs}
+
+
+def channel_slope(s, z):
+    """
+    Downstream channel slope ``S = -dz/ds`` along ordered segment vertices.
+
+    ``s`` is along-segment distance increasing downstream; ``z`` is elevation.
+    S is positive where the channel descends downstream. Computed with a
+    non-uniform-spacing gradient. NaN for segments shorter than two points.
+    """
+    s = np.asarray(s, dtype=float)
+    z = np.asarray(z, dtype=float)
+    if len(z) < 2:
+        return np.full(len(z), np.nan)
+    return -np.gradient(z, s)
+
+
+def slope_area(records, window=None, log=False):
+    """
+    Paired channel slope and drainage area across the whole network, for
+    slope--area analysis (e.g. locating the fluvial -> hillslope rollover).
+
+    For each segment independently (junctions never crossed): optionally smooth
+    elevation ``z`` and area ``A`` over ``window``, compute channel slope
+    ``S = -dz/ds`` from the (smoothed) ``z``, and pair it with the (smoothed)
+    ``A``. Each record must carry ``z`` and ``A``.
+
+    Returns ``(A, S)`` 1-D arrays concatenated over all segments. With
+    ``log=True`` returns ``(log10(A), log10(S))`` keeping only ``A > 0`` and
+    ``S > 0`` (so the pairs are ready for a log--log fit / rollover search).
+    """
+    A_all, S_all = [], []
+    for rec in records:
+        s_down, _ = segment_distances(rec['x'], rec['y'])
+        z = np.asarray(rec['z'], dtype=float)
+        A = np.asarray(rec['A'], dtype=float)
+        if window is not None:
+            z = moving_average(s_down, z, window)
+            A = moving_average(s_down, A, window)
+        A_all.append(A)
+        S_all.append(channel_slope(s_down, z))
+    A = np.concatenate(A_all) if A_all else np.array([], dtype=float)
+    S = np.concatenate(S_all) if S_all else np.array([], dtype=float)
+    if log:
+        keep = (A > 0) & (S > 0)
+        return np.log10(A[keep]), np.log10(S[keep])
+    return A, S
+
+
 #######
 # I/O #
 #######
