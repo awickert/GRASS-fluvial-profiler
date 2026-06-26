@@ -342,11 +342,12 @@ def slope_area(records, window=None, log=False):
     A_all, S_all = [], []
     for rec in records:
         s_down, _ = segment_distances(rec['x'], rec['y'])
-        z = np.asarray(rec['z'], dtype=float)
-        A = np.asarray(rec['A'], dtype=float)
         if window is not None:
-            z = moving_average(s_down, z, window)
-            A = moving_average(s_down, A, window)
+            smoothed = smooth_segment(rec, ('z', 'A'), window)
+            z, A = smoothed['z'], smoothed['A']
+        else:
+            z = np.asarray(rec['z'], dtype=float)
+            A = np.asarray(rec['A'], dtype=float)
         A_all.append(A)
         S_all.append(channel_slope(s_down, z))
     A = np.concatenate(A_all) if A_all else np.array([], dtype=float)
