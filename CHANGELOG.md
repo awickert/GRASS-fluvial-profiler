@@ -21,8 +21,8 @@ and this project aims to follow [Semantic Versioning](https://semver.org/).
   mapped heads at Mid Bailey Run, OH (field heads sit at ~0.5&times; A\*, mostly
   in the colluvial zone).
 - **`rivernetworkx`** gains `fit_sa_break` (the constrained broken-stick
-  slope&ndash;area break detector), `channel_head_points` (place points where
-  drainage area first crosses A\*), and `read_stream_segments` (read a stream
+  slope&ndash;area break detector), `colluvial_fluvial_transition` (place points
+  where drainage area first crosses A\*), and `read_stream_segments` (read a stream
   vector into edge records **without** a `tostream` column, so a raw
   `r.stream.extract` network is usable directly &mdash; no `v.stream.network`
   linking step required).

@@ -380,7 +380,8 @@ def fit_sa_break(logA, logS, knots=None, min_side=10):
 
     The hillslope limb is flat (slope independent of area); the fluvial limb is a
     power law ``S ~ A^-theta``. The two limbs join at the knot ``log A*`` -- the
-    predicted channel-initiation (channel-head) drainage area. Fitting both limbs
+    colluvial-to-fluvial transition drainage area (where channels become
+    fluvial). Fitting both limbs
     jointly -- scan the knot, least-squares ``(h, slope)`` at each, keep the knot
     with the smallest residual -- is the rigorous form of "fit the channel power
     law, fit the hillslope constant, take their intersection": the limbs meet at
@@ -437,24 +438,29 @@ def fit_sa_break(logA, logS, knots=None, min_side=10):
     return best
 
 
-def channel_head_points(records, A_star):
+def colluvial_fluvial_transition(records, A_star):
     """
-    Locate fluvial channel heads as the points where drainage area first reaches
-    ``A_star`` going downstream -- i.e. where each channel becomes fluvial, with
-    ``A_star`` the slope--area break from :func:`fit_sa_break`.
+    Locate the colluvial-to-fluvial transition: the points where drainage area
+    first reaches ``A_star`` going downstream -- i.e. where each channel becomes
+    fluvial (the downslope limit of the colluvial hollow), with ``A_star`` the
+    slope--area break from :func:`fit_sa_break`.
 
     Flow accumulation already integrates the upstream contributing area, so no
     network topology is needed: within a segment whose upstream end is below
     ``A_star`` and downstream end is at or above it, the crossing is exactly that
-    channel's fluvial head. The location is linearly interpolated in area between
+    channel's transition. The location is linearly interpolated in area between
     the two bracketing vertices.
 
     Each record needs per-vertex ``A`` (drainage area) and ``x``/``y``. Vertices
     may be ordered either way; the segment is oriented to ascending area first.
 
-    Returns a list of ``(x, y, cat)`` -- one head per channel that initiates
-    within the network. Channels entirely below ``A_star`` (never fluvial in the
-    extracted network) or entirely above it (downstream of their head) yield none.
+    Returns a list of ``(x, y, cat)`` -- one transition per channel that crosses
+    into the fluvial regime within the network. Channels entirely below
+    ``A_star`` (colluvial throughout the extracted network) or entirely above it
+    (downstream of their transition) yield none.
+
+    This is a PROCESS boundary, not a morphological field channel head -- the
+    latter lies upslope, within the colluvial hollow (see r.stream.hollow).
     """
     heads = []
     for rec in records:

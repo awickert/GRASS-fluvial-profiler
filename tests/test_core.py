@@ -224,7 +224,7 @@ def test_fit_sa_break_too_few_points():
     assert rnx.fit_sa_break([1.0, 2.0, 3.0], [0.0, -0.1, -0.2]) is None
 
 
-def test_channel_head_points():
+def test_colluvial_fluvial_transition():
     recs = [
         # crosses A*=1200 between vertices at A=1000 (x=10) and A=2000 (x=20)
         {"cat": 5, "x": [0.0, 10.0, 20.0], "y": [0.0, 0.0, 0.0],
@@ -234,8 +234,8 @@ def test_channel_head_points():
         # reversed order (downstream first) still found and oriented
         {"cat": 8, "x": [20.0, 10.0], "y": [9.0, 9.0], "A": [2000.0, 1000.0]},
     ]
-    heads = rnx.channel_head_points(recs, A_star=1200.0)
-    by_cat = {c: (x, y) for x, y, c in heads}
+    pts = rnx.colluvial_fluvial_transition(recs, A_star=1200.0)
+    by_cat = {c: (x, y) for x, y, c in pts}
     assert set(by_cat) == {5, 8}                 # only the crossing segments
     # interp: f = (1200-1000)/(2000-1000) = 0.2 -> x = 10 + 0.2*10 = 12
     assert np.isclose(by_cat[5][0], 12.0)

@@ -163,7 +163,7 @@ def main():
 
     # Place a transition point where each channel first reaches A* (the colluvial
     # hollow gives way to a fluvial channel).
-    transitions = rnx.channel_head_points(records, A_star)
+    transitions = rnx.colluvial_fluvial_transition(records, A_star)
     if not transitions:
         gscript.fatal("No channel crossed A* = %.1f within the network; the "
                       "extraction may not reach upslope past the hollows."

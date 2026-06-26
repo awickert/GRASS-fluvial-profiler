@@ -22,7 +22,7 @@ from .core import (
     channel_slope,
     slope_area,
     fit_sa_break,
-    channel_head_points,
+    colluvial_fluvial_transition,
     make_json_safe,
     to_json_dict,
     export_json,
