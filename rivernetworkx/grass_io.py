@@ -58,6 +58,22 @@ def sample_raster(array, x, y, *, west, north, nsres, ewres):
     return out
 
 
+def offmap_inflow_cats(records):
+    """
+    Segment cats whose sampled accumulation goes negative.
+
+    GRASS ``r.watershed`` (especially with ``-s``) writes NEGATIVE flow
+    accumulation for cells whose contributing area includes flow from outside
+    the current region. A channel carrying negative accumulation therefore
+    drains partly off-map: the catchment is incomplete (an upstream off-map
+    inflow). This is currently a hard error at build time; later it could be
+    queried instead -- see the "incomplete catchments" enhancement (issue #9).
+    """
+    return [rec['cat'] for rec in records
+            if rec.get('A') is not None
+            and np.any(np.asarray(rec['A'], dtype=float) < 0)]
+
+
 def assemble_records(cats, tostream, geometry, **vertex_attrs):
     """
     Build rivernetworkx edge records from already-read GRASS data.
@@ -184,9 +200,23 @@ def read_stream_vector(streams, elevation=None, accumulation=None, slope=None,
                                                                **bounds)
                                      for cat, (gx, gy) in geometry.items()}
 
-    return assemble_records(cats, tostream, geometry,
-                            z=samples['z'], A=samples['A'],
-                            slope=samples['slope'])
+    records = assemble_records(cats, tostream, geometry,
+                               z=samples['z'], A=samples['A'],
+                               slope=samples['slope'])
+
+    # An incomplete catchment (off-map upstream contributing area) shows up as
+    # negative flow accumulation on channel cells. Not yet supported: fail
+    # loudly rather than build a partial/misleading network. (issue #9)
+    bad = offmap_inflow_cats(records)
+    if bad:
+        from grass.script import fatal
+        fatal("Negative flow accumulation on segment(s) %s: the catchment is "
+              "incomplete (off-map contributing area; r.watershed marks such "
+              "cells negative). Upstream off-map inflow is not yet supported "
+              "(enhancement: issue #9). Use a region/DEM that fully contains "
+              "the catchment, or omit accumulation."
+              % ', '.join(str(c) for c in bad))
+    return records
 
 
 def build_network(streams, elevation=None, accumulation=None, slope=None,

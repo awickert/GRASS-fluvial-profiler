@@ -46,9 +46,10 @@ class TestProfiler(TestCase):
         tmp = tempfile.mkdtemp()
         txt = os.path.join(tmp, 'prof.txt')
         js = os.path.join(tmp, 'prof.json')
+        # no accumulation: the synthetic catchment drains off-map (negative
+        # accumulation), covered by test_incomplete_catchment_errors.
         self.assertModule('v.stream.profiler', cat=1, streams='streams',
-                          elevation='dem', accumulation='accum',
-                          dx_target=5, outfile=txt, json=js)
+                          elevation='dem', dx_target=5, outfile=txt, json=js)
         with open(txt) as f:
             lines = f.read().splitlines()
         self.assertGreater(len(lines), 2)            # header + data
@@ -56,6 +57,12 @@ class TestProfiler(TestCase):
         d = json.load(open(js))
         ids = [n['id'] for n in d['nodes']]
         self.assertIn(0, ids)                         # off-map outlet present
+
+    def test_incomplete_catchment_errors(self):
+        # sampling accumulation on this off-map-draining catchment must fail
+        # (negative flow accumulation; issue #9)
+        self.assertModuleFail('v.stream.profiler', cat=1, streams='streams',
+                              elevation='dem', accumulation='accum')
 
     def test_requires_tostream(self):
         # A raw r.stream.extract vector has no tostream column; the module must

@@ -41,6 +41,18 @@ def test_sample_raster_on_east_south_edge():
     assert np.all(np.isnan(rnx.sample_raster(arr, [40.001], [15.0], **bounds)))
 
 
+def test_offmap_inflow_cats():
+    # negative accumulation (off-map contributing area) flags an incomplete
+    # catchment; positive-only and absent-A records do not
+    recs = [
+        {'cat': 1, 'A': np.array([5.0, 10.0])},          # ok
+        {'cat': 2, 'A': np.array([3.0, -1.0, 8.0])},     # off-map inflow
+        {'cat': 3},                                       # no A sampled
+    ]
+    assert rnx.offmap_inflow_cats(recs) == [2]
+    assert rnx.offmap_inflow_cats([recs[0], recs[2]]) == []
+
+
 def test_assemble_records_skips_none():
     cats = [1, 3]
     tostream = {1: 3, 3: 0}

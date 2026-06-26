@@ -32,6 +32,7 @@ from .core import (
 # actually called. sample_raster and assemble_records are pure.
 from .grass_io import (  # noqa: F401
     sample_raster,
+    offmap_inflow_cats,
     assemble_records,
     read_stream_vector,
     build_network,

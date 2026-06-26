@@ -81,7 +81,9 @@ class TestBuildNetwork(TestCase):
         cls.del_temp_region()
 
     def test_build_network(self):
-        G = rnx.build_network('streams', elevation='dem', accumulation='accum')
+        # no accumulation: this synthetic catchment drains off-map (negative
+        # accumulation), which is exercised separately by the error test below.
+        G = rnx.build_network('streams', elevation='dem')
         self.assertGreater(G.number_of_nodes(), 1)
         self.assertIn(0, G.nodes)                       # off-map outlet present
         self.assertTrue(nx.is_directed_acyclic_graph(G))
@@ -89,6 +91,12 @@ class TestBuildNetwork(TestCase):
             self.assertIn('s', G.nodes[n])              # cumulative distance set
         self.assertEqual(G.nodes[0]['s'][0], 0)         # outlet is the origin
         self.assertGreater(max(G.nodes[n]['s'][0] for n in G.nodes), 0)
+
+    def test_incomplete_catchment_errors(self):
+        # off-map contributing area shows up as negative accumulation; sampling
+        # it is currently unsupported and must fail loudly (gscript.fatal).
+        with self.assertRaises(SystemExit):
+            rnx.build_network('streams', accumulation='accum')
 
     def test_elevation_sampled(self):
         G = rnx.build_network('streams', elevation='dem')
