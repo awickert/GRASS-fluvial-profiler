@@ -266,14 +266,14 @@ def main():
         """The smoothed series if a window was set, else the raw one."""
         return prof[name + '_smoothed'] if smooth else prof[name]
 
-    if 'LongProfile' in plots and elevation:
+    if 'LongProfile' in plots and required['LongProfile']:
         plt.figure()
         for prof in profiles:
             plt.plot(prof['s'] / 1000., pick(prof, 'z'), 'k-', linewidth=2)
         plt.xlabel('Distance from mouth [km]', fontsize=16)
         plt.ylabel('Elevation [m]', fontsize=16)
         plt.tight_layout()
-    if 'SlopeAccum' in plots and slope and accumulation:
+    if 'SlopeAccum' in plots and required['SlopeAccum']:
         plt.figure()
         for prof in profiles:
             S, A = pick(prof, 'slope'), pick(prof, 'A')
@@ -282,14 +282,14 @@ def main():
         plt.xlabel(accum_label, fontsize=16)
         plt.ylabel('Slope [$-$]', fontsize=16)
         plt.tight_layout()
-    if 'SlopeDistance' in plots and slope:
+    if 'SlopeDistance' in plots and required['SlopeDistance']:
         plt.figure()
         for prof in profiles:
             plt.plot(prof['s'] / 1000., pick(prof, 'slope'), 'k-', linewidth=2)
         plt.xlabel('Distance from mouth [km]', fontsize=16)
         plt.ylabel('Slope [$-$]', fontsize=16)
         plt.tight_layout()
-    if 'AccumDistance' in plots and accumulation:
+    if 'AccumDistance' in plots and required['AccumDistance']:
         plt.figure()
         for prof in profiles:
             A = pick(prof, 'A')
