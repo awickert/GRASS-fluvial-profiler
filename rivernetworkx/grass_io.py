@@ -200,21 +200,43 @@ def _read_raster(rastname):
     return arr, bounds
 
 
-def read_stream_vector(streams, elevation=None, accumulation=None, slope=None,
-                       accum_mult=1.0, assume_complete=False):
-    """
-    Read a v.stream.network-linked vector (and any rasters) into edge records.
-    Requires a live GRASS session.
+def _read_geometry_all(streams):
+    """Return {cat: (x_array, y_array)} for every line in the vector.
 
-    ``assume_complete``: when True, the caller asserts the region contains the
-    full basin, so negative accumulation at a channel head is treated as an
-    r.watershed boundary artifact (a divide on the region edge) rather than
-    off-map inflow, and the off-map error is skipped. The NaN-coverage check is
-    always enforced.
+    Like _read_geometry but discovers the cats itself (one pass over the lines)
+    instead of being handed a cat list, so callers that do not have / do not want
+    the topology table (e.g. the channel-head detector reading a raw
+    r.stream.extract network) need not run v.stream.network first. Consecutive
+    coincident vertices are dropped (see _read_geometry).
     """
-    cats, tostream = _read_topology_table(streams)
-    geometry = _read_geometry(streams, cats)
+    from grass.pygrass.vector import VectorTopo
+    vt = VectorTopo(streams)
+    vt.open('r')
+    geometry = {}
+    for ln in vt.viter('lines'):
+        if ln.cat is None:
+            continue
+        en = ln.to_array()
+        x, y = en[:, 0], en[:, 1]
+        keep = np.concatenate(([True], (np.diff(x) != 0) | (np.diff(y) != 0)))
+        if keep.sum() >= 2:
+            geometry[int(ln.cat)] = (x[keep], y[keep])
+    vt.close()
+    return geometry
 
+
+def _read_records(geometry, tostream, elevation=None, accumulation=None,
+                  slope=None, accum_mult=1.0, assume_complete=False):
+    """
+    Sample rasters along the given geometry and assemble validated edge records.
+
+    Shared body of read_stream_vector (cats+tostream from the attribute table)
+    and read_stream_segments (geometry only, no topology). ``geometry`` is
+    {cat: (x, y)}; ``tostream`` is {cat: downstream cat} (all OFFMAP for the
+    topology-free reader). Applies the NaN-coverage, off-map-inflow, and
+    abs(accumulation) handling. Requires a live GRASS session.
+    """
+    cats = list(geometry)
     specs = (('z', elevation, 1.0),
              ('A', accumulation, accum_mult),
              ('slope', slope, 1.0))
@@ -290,6 +312,44 @@ def read_stream_vector(streams, elevation=None, accumulation=None, slope=None,
         if rec.get('A') is not None:
             rec['A'] = np.abs(np.asarray(rec['A'], dtype=float))
     return records
+
+
+def read_stream_vector(streams, elevation=None, accumulation=None, slope=None,
+                       accum_mult=1.0, assume_complete=False):
+    """
+    Read a v.stream.network-linked vector (and any rasters) into edge records.
+    Requires a live GRASS session.
+
+    ``assume_complete``: when True, the caller asserts the region contains the
+    full basin, so negative accumulation at a channel head is treated as an
+    r.watershed boundary artifact (a divide on the region edge) rather than
+    off-map inflow, and the off-map error is skipped. The NaN-coverage check is
+    always enforced.
+    """
+    cats, tostream = _read_topology_table(streams)
+    geometry = _read_geometry(streams, cats)
+    return _read_records(geometry, tostream, elevation=elevation,
+                         accumulation=accumulation, slope=slope,
+                         accum_mult=accum_mult, assume_complete=assume_complete)
+
+
+def read_stream_segments(streams, elevation=None, accumulation=None, slope=None,
+                         accum_mult=1.0, assume_complete=False):
+    """
+    Read a stream vector into edge records WITHOUT requiring topology.
+
+    Like read_stream_vector but reads geometry straight from the lines and does
+    not need a ``tostream`` column, so a raw r.stream.extract network can be used
+    directly -- no v.stream.network step (and no O(N^2) linking) first. Each
+    record carries ``tostream = OFFMAP`` (topology is absent); this is what the
+    slope--area / fluvial-channel-head analysis needs, which is per-segment and
+    uses flow accumulation rather than the network graph.
+    """
+    geometry = _read_geometry_all(streams)
+    tostream = {cat: OFFMAP for cat in geometry}
+    return _read_records(geometry, tostream, elevation=elevation,
+                         accumulation=accumulation, slope=slope,
+                         accum_mult=accum_mult, assume_complete=assume_complete)
 
 
 def build_network(streams, elevation=None, accumulation=None, slope=None,

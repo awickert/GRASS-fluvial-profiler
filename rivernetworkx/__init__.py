@@ -37,5 +37,6 @@ from .grass_io import (  # noqa: F401
     offmap_inflow_cats,
     assemble_records,
     read_stream_vector,
+    read_stream_segments,
     build_network,
 )
