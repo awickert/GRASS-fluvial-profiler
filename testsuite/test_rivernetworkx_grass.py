@@ -107,5 +107,38 @@ class TestBuildNetwork(TestCase):
         self.assertTrue(any(finite))
 
 
+class TestCompleteCatchment(TestCase):
+    """A complete catchment (central peak draining radially outward) keeps
+    positive accumulation at the channel heads; negatives appear only on the
+    outlet boundary cells, which are tolerated, so building WITH accumulation
+    succeeds (unlike the off-map-draining catchment above)."""
+
+    @classmethod
+    def setUpClass(cls):
+        cls.use_temp_region()
+        cls.runModule('g.region', n=100, s=0, e=100, w=0, res=1)
+        cls.runModule('r.mapcalc',
+                      expression='demp = 100 - sqrt((x()-50)^2 + (y()-50)^2)',
+                      overwrite=True)
+        cls.runModule('r.watershed', elevation='demp', accumulation='accp',
+                      flags='s', overwrite=True)
+        cls.runModule('r.stream.extract', elevation='demp', accumulation='accp',
+                      stream_vector='streamsp', direction='ddp',
+                      threshold=10, d8cut=0, overwrite=True)
+        cls.runModule('v.stream.network', map='streamsp')
+
+    @classmethod
+    def tearDownClass(cls):
+        cls.runModule('g.remove', flags='f', type='raster', name='demp,accp,ddp')
+        cls.runModule('g.remove', flags='f', type='vector', name='streamsp')
+        cls.del_temp_region()
+
+    def test_build_with_accumulation_succeeds(self):
+        # negatives only at the outlet boundary -> no head is negative -> builds
+        G = rnx.build_network('streamsp', elevation='demp', accumulation='accp')
+        self.assertGreater(G.number_of_nodes(), 1)
+        self.assertIn(0, G.nodes)
+
+
 if __name__ == '__main__':
     test()

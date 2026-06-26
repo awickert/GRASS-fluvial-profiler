@@ -60,18 +60,32 @@ def sample_raster(array, x, y, *, west, north, nsres, ewres):
 
 def offmap_inflow_cats(records):
     """
-    Segment cats whose sampled accumulation goes negative.
+    Segment cats whose sampled accumulation is negative at the UPSTREAM-most
+    vertex -- i.e. off-map contributing area reaches the channel head, which
+    marks an incomplete catchment.
 
-    GRASS ``r.watershed`` (especially with ``-s``) writes NEGATIVE flow
-    accumulation for cells whose contributing area includes flow from outside
-    the current region. A channel carrying negative accumulation therefore
-    drains partly off-map: the catchment is incomplete (an upstream off-map
-    inflow). This is currently a hard error at build time; later it could be
-    queried instead -- see the "incomplete catchments" enhancement (issue #9).
+    GRASS ``r.watershed`` writes NEGATIVE flow accumulation for cells that may
+    receive flow from outside the region, and the flag propagates downstream.
+    In a COMPLETE catchment this is confined to the outlet's boundary cells (the
+    downstream end), where the channel legitimately leaves the map -- that is
+    normal and tolerated. An INCOMPLETE catchment instead has the negative reach
+    up to a segment head, so we flag a segment only when its upstream-most
+    accumulation is negative.
+
+    Currently a hard error at build time; making off-map inflow queryable is
+    enhancement issue #9. (Assumes off-map inflow enters at a segment head,
+    which r.stream.extract segmentation gives; diffuse lateral mid-reach inflow,
+    and a divide placed exactly on the region edge, are not handled -- issue #9.)
     """
-    return [rec['cat'] for rec in records
-            if rec.get('A') is not None
-            and np.any(np.asarray(rec['A'], dtype=float) < 0)]
+    bad = []
+    for rec in records:
+        A = rec.get('A')
+        if A is None:
+            continue
+        A = np.asarray(A, dtype=float)
+        if A.size and A[0] < 0:          # negative at the channel head
+            bad.append(rec['cat'])
+    return bad
 
 
 def assemble_records(cats, tostream, geometry, **vertex_attrs):
@@ -205,16 +219,19 @@ def read_stream_vector(streams, elevation=None, accumulation=None, slope=None,
                                slope=samples['slope'])
 
     # An incomplete catchment (off-map upstream contributing area) shows up as
-    # negative flow accumulation on channel cells. Not yet supported: fail
-    # loudly rather than build a partial/misleading network. (issue #9)
+    # negative flow accumulation reaching a channel head. Negative accumulation
+    # only at the outlet boundary (the downstream end) is the normal map exit
+    # and is fine. Off-map inflow is not yet supported: fail loudly rather than
+    # build a misleading network. (issue #9)
     bad = offmap_inflow_cats(records)
     if bad:
         from grass.script import fatal
-        fatal("Negative flow accumulation on segment(s) %s: the catchment is "
-              "incomplete (off-map contributing area; r.watershed marks such "
-              "cells negative). Upstream off-map inflow is not yet supported "
-              "(enhancement: issue #9). Use a region/DEM that fully contains "
-              "the catchment, or omit accumulation."
+        fatal("Negative flow accumulation reaches the head of segment(s) %s: "
+              "the catchment is incomplete (off-map contributing area upstream; "
+              "r.watershed marks such cells negative). Negative accumulation "
+              "only at the outlet boundary is fine, but off-map inflow is not "
+              "yet supported (enhancement: issue #9). Use a region/DEM that "
+              "fully contains the catchment, or omit accumulation."
               % ', '.join(str(c) for c in bad))
     return records
 
