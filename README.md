@@ -86,6 +86,33 @@ python examples/clean_coarsen_network.py network.json network_clean.json
 
 Run with `--help` to see the despiking, smoothing, and coarsening options.
 
+### Hillslope lengths to channels
+
+Once you have a stream network and a flow-direction raster (both produced in the
+workflow above),
+[`r.stream.distance`](https://grass.osgeo.org/grass-stable/manuals/addons/r.stream.distance.html)
+(from the `r.stream.*` addon suite) gives the **down-flow-path distance from each
+cell to the channel it drains into** &mdash; the hillslope flow length &mdash;
+and, with `elevation=`, the elevation drop along that path (Height Above Nearest
+Drainage, HAND):
+
+```
+r.stream.distance stream_rast=streams direction=draindir elevation=DEM \
+    method=downstream distance=hillslope_length difference=hand
+```
+
+`hillslope_length` is a useful input for **hydrological models** (overland-flow
+travel time, runoff routing), **soil-erosion** estimates (the slope-length term
+of the (R)USLE `LS` factor), and **hillslope geomorphology** (characteristic
+hillslope length, drainage density). `hand` is a standard wetness/floodplain
+predictor.
+
+The channel network passed as `stream_rast` defines where hillslopes are taken to
+end, so that choice propagates into every derived length. Thresholding
+accumulation at `r.stream.hollow`'s colluvial-to-fluvial transition area `A*`
+(`accumulation >= A*`) gives a process-based channel definition rather than an
+arbitrary extraction threshold.
+
 ## License
 
 GNU General Public License, version 3 or later (GPL >= v3). See
