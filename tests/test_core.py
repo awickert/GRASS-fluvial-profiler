@@ -133,6 +133,17 @@ def test_slope_area():
     assert len(logA2) == 0
 
 
+def test_dense_network_degradation():
+    # A 2-vertex reach shorter than dx_target / window: must not crash, must
+    # keep >= 2 points, and smoothing just averages what little it has.
+    s = np.array([0.0, 3.0])
+    new_s, arr = rnx.densify(s, {"z": np.array([1.0, 4.0])}, dx_target=100.0)
+    assert len(new_s) == 2 and np.allclose(arr["z"], [1.0, 4.0])  # endpoints kept
+    rec = {"x": [0.0, 0.0], "y": [3.0, 0.0], "z": [1.0, 4.0]}
+    out = rnx.smooth_segment(rec, ("z",), window=100.0)
+    assert np.allclose(out["z"], 2.5)  # both averaged; no reach beyond the segment
+
+
 def test_json_roundtrip(tmp_path=None):
     G = rnx.build_graph(RECORDS)
     path = os.path.join(tmp_path or "/tmp", "rnx_roundtrip.json")
