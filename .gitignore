@@ -103,3 +103,7 @@ ENV/
 
 # LINUX
 *.swp
+
+# GRASS gunittest artifacts (written when running testsuite/ locally)
+test_keyvalue_result.txt
+/testreport/
