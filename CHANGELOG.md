@@ -24,6 +24,10 @@ pre-1.0 and may change.
   samples rasters along each segment, computes cumulative distance upstream of
   the outlet, and writes node-link JSON. This is the capability formerly
   provided by the separate `v.stream.networkx` module.
+- **`v.stream.network`** and **`v.stream.profiler`** gain a `-c` flag (the region
+  contains the full basin): a negative-accumulation channel head is then treated
+  as an `r.watershed` boundary artifact (a divide on the region edge) rather than
+  off-map inflow, skipping the off-map error.
 
 ### Changed
 - **`v.stream.profiler`** rebuilt on `rivernetworkx`. It walks either downstream
@@ -52,7 +56,11 @@ pre-1.0 and may change.
   coincident vertices.
 - Incomplete catchments (off-map upstream contributing area, flagged by negative
   `r.watershed` accumulation reaching a channel head) are caught with a clear
-  error rather than silently producing a misleading network.
+  error rather than silently producing a misleading network; the `-c` flag
+  overrides this when the region truly holds the full basin.
+- Raster NULL cells are read as NaN rather than a silent `0`, so missing data
+  stays honest; sampling accumulation with no data under a channel cell now
+  errors clearly instead of slipping through as a fake `0`.
 - `export_json` emits standards-compliant JSON (non-finite floats as `null`, not
   the bare `NaN` token that strict parsers reject); `load_json` restores them.
 
