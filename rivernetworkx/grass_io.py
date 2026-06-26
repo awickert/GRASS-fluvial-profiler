@@ -186,10 +186,14 @@ def _region_over(geometry, align):
 
 
 def _read_raster(rastname):
-    """Return (north-up array, region-dict) for a raster over the current region."""
+    """Return (north-up array, region-dict) for a raster over the current region.
+
+    NULL cells are loaded as NaN (not garray's default fill, which would silently
+    pass missing data through as 0); this keeps "no data" honest downstream.
+    """
     from grass.script import array as garray
     from grass.pygrass.gis.region import Region
-    arr = np.asarray(garray.array(mapname=rastname))
+    arr = np.asarray(garray.array(mapname=rastname, null=np.nan))
     reg = Region()
     bounds = {'west': reg.west, 'north': reg.north,
               'nsres': reg.nsres, 'ewres': reg.ewres}
