@@ -15,6 +15,7 @@ Cumulative distance upstream of the outlet (node 's'):
     node 0 = 0 ; node 3 = 30 ; nodes 1,2 = 30 + 28.284 = 58.284
 """
 
+import json
 import os
 import sys
 
@@ -79,6 +80,33 @@ def test_assemble_downstream_profile():
     assert np.isclose(prof["s"].min(), 0.0)
     # elevation falls downstream: 9 (headwater) -> 0 (mouth)
     assert np.isclose(prof["z"][0], 9.0) and np.isclose(prof["z"][-1], 0.0)
+    # each point is labelled with its source segment (junction point de-duped)
+    assert list(prof["cat"]) == [1, 1, 3]
+
+
+def test_densify_collapses_duplicate_stations():
+    # a coincident vertex gives a repeated distance; densify must not let
+    # np.interp see a non-increasing x (it would return an ill-defined value)
+    new_s, arr = rnx.densify([0.0, 5.0, 5.0, 10.0],
+                             {"z": [0.0, 5.0, 99.0, 10.0]}, dx_target=2.5)
+    assert np.allclose(new_s, [0.0, 2.5, 5.0, 7.5, 10.0])
+    assert np.allclose(arr["z"], [0.0, 2.5, 5.0, 7.5, 10.0])  # 99 spike collapsed
+
+
+def test_channel_slope_no_inf_on_duplicate():
+    S = rnx.channel_slope([0.0, 5.0, 5.0, 10.0], [0.0, 5.0, 99.0, 10.0])
+    assert not np.any(np.isinf(S))  # zero spacing -> NaN, never +/-inf
+
+
+def test_export_json_is_standard_and_roundtrips_nan(tmp_path=None):
+    G = rnx.build_graph(RECORDS)  # off-map node 0 carries z=[nan]
+    path = os.path.join(tmp_path or "/tmp", "rnx_nan.json")
+    rnx.export_json(G, path)
+    raw = open(path).read()
+    assert "NaN" not in raw          # standards-compliant: no bare NaN token
+    json.loads(raw)                  # a strict parser accepts it
+    H = rnx.load_json(path)
+    assert np.isnan(H.nodes[0]["z"][0])   # null restored to NaN on load
 
 
 def test_densify():

@@ -18,6 +18,7 @@
 #############################################################################
 
 import json
+import math
 
 import numpy as np
 import networkx as nx
@@ -205,8 +206,9 @@ def assemble_downstream_profile(records_by_cat, path, attrs=()):
                      ``'A'``, ``'slope'``).
 
     Returns a dict with ``s`` (cumulative distance upstream of the network
-    mouth), ``x``, ``y``, and each requested attribute, each a 1-D array running
-    upstream -> downstream. Vertices shared at junctions are de-duplicated.
+    mouth), ``cat`` (the source segment of each point), ``x``, ``y``, and each
+    requested attribute, each a 1-D array running upstream -> downstream.
+    Vertices shared at junctions are de-duplicated.
     """
     path = list(path)
     # Per-segment along-distance, and distance from the mouth at each segment's
@@ -223,13 +225,16 @@ def assemble_downstream_profile(records_by_cat, path, attrs=()):
     names = ['x', 'y'] + list(attrs)
     out = {name: [] for name in names}
     out['s'] = []
+    out['cat'] = []                                  # source segment of each point
     prev = None
     for cat in path:                                 # upstream -> downstream
         rec = records_by_cat[cat]
         # distance from the mouth, decreasing downstream within the segment
         s_seg = offset[cat] + (s_down[cat][-1] - s_down[cat])
         start = 1 if prev is not None else 0         # drop shared junction point
-        out['s'].append(s_seg[start:])
+        kept = s_seg[start:]
+        out['s'].append(kept)
+        out['cat'].append(np.full(len(kept), cat, dtype=int))
         for name in names:
             out[name].append(np.asarray(rec[name], dtype=float)[start:])
         prev = cat
@@ -251,10 +256,17 @@ def densify(s, arrays, dx_target):
     s = np.asarray(s, dtype=float)
     order = np.argsort(s)
     s_sorted = s[order]
-    s0, s1 = s_sorted[0], s_sorted[-1]
+    # Collapse coincident stations so np.interp has strictly increasing x.
+    uniq = np.concatenate(([True], np.diff(s_sorted) > 0))
+    s_u = s_sorted[uniq]
+    if len(s_u) < 2:                       # zero-length / single-station segment
+        return s, {name: np.asarray(arr, dtype=float)
+                   for name, arr in arrays.items()}
+    s0, s1 = s_u[0], s_u[-1]
     n = max(int(np.ceil((s1 - s0) / float(dx_target))) + 1, 2)
     new_s = np.linspace(s0, s1, n)
-    out = {name: np.interp(new_s, s_sorted, np.asarray(arr, dtype=float)[order])
+    out = {name: np.interp(new_s, s_u,
+                           np.asarray(arr, dtype=float)[order][uniq])
            for name, arr in arrays.items()}
     return new_s, out
 
@@ -305,7 +317,12 @@ def channel_slope(s, z):
     z = np.asarray(z, dtype=float)
     if len(z) < 2:
         return np.full(len(z), np.nan)
-    return -np.gradient(z, s)
+    # Coincident vertices (zero spacing) make the gradient non-finite; report
+    # those as NaN rather than +/-inf so they drop out of slope-area analysis.
+    with np.errstate(divide='ignore', invalid='ignore'):
+        S = -np.gradient(z, s)
+    S[~np.isfinite(S)] = np.nan
+    return S
 
 
 def slope_area(records, window=None, log=False):
@@ -345,11 +362,18 @@ def slope_area(records, window=None, log=False):
 #######
 
 def _to_jsonable(obj):
-    """Recursively convert numpy arrays/scalars to plain Python for JSON."""
+    """Recursively convert numpy arrays/scalars to plain Python for JSON.
+
+    Non-finite floats (NaN/inf) become None, so the output is standards-compliant
+    JSON (bare ``NaN`` is not valid JSON and strict parsers reject it);
+    ``load_json`` restores them to NaN.
+    """
     if isinstance(obj, np.ndarray):
         return _to_jsonable(obj.tolist())
     if isinstance(obj, np.generic):
-        return obj.item()
+        return _to_jsonable(obj.item())
+    if isinstance(obj, float) and not math.isfinite(obj):
+        return None
     if isinstance(obj, (list, tuple)):
         return type(obj)(_to_jsonable(x) for x in obj)
     if isinstance(obj, dict):
@@ -382,7 +406,27 @@ def export_json(G, path):
         json.dump(to_json_dict(G), f, indent=2)
 
 
+def _none_to_nan(obj):
+    """Restore JSON null (written by _to_jsonable for non-finite floats) to NaN."""
+    if isinstance(obj, list):
+        return [_none_to_nan(x) for x in obj]
+    if obj is None:
+        return float('nan')
+    return obj
+
+
 def load_json(path):
-    """Read a NetworkX node-link JSON file back into a DiGraph."""
+    """Read a NetworkX node-link JSON file back into a DiGraph.
+
+    JSON null inside attribute arrays (written for NaN by export_json) is
+    restored to NaN.
+    """
     with open(path) as f:
-        return json_graph.node_link_graph(json.load(f))
+        G = json_graph.node_link_graph(json.load(f))
+    for _, data in G.nodes(data=True):
+        for k in list(data):
+            data[k] = _none_to_nan(data[k])
+    for _, _, data in G.edges(data=True):
+        for k in list(data):
+            data[k] = _none_to_nan(data[k])
+    return G
