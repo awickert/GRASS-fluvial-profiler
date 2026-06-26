@@ -339,8 +339,7 @@ def main():
     if direction == 'downstream':
         gscript.message("Extracting drainage pathway...",)
         # Get network
-        # -1 TEMPORARILY ALSO USED AS OFFMAP CODE, IN ADDITION TO 0
-        # CHANGE BACK LATER
+        # Off-map code is 0; the > 0 guard also tolerates legacy -1 vectors
         while selected_cats[-1] > 0:
             selected_cats.append(int(tostream[cats == selected_cats[-1]]))
         #x.append(selected_cats[-1])
