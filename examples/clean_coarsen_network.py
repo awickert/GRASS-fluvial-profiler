@@ -287,6 +287,12 @@ def downsample_edge_along_s_new(
         if has_A:
             data[A_attr] = interp1d(s, A, kind="linear")(s_new).tolist()
 
+        # Drop companion per-vertex arrays we did not resample (the export's
+        # s_upstream/s_downstream, and any sampled slope): left untouched they
+        # keep their original length and would disagree with x/y/z/A/s.
+        for stale in ("s_upstream", "s_downstream", "slope"):
+            data.pop(stale, None)
+
     return H
 
 
