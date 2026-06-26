@@ -20,6 +20,8 @@
 # this module (and its pure helpers below) import without GRASS -- which keeps
 # the sampling and assembly logic unit-testable.
 
+from contextlib import contextmanager
+
 import numpy as np
 
 from .core import build_graph
@@ -41,9 +43,16 @@ def sample_raster(array, x, y, *, west, north, nsres, ewres):
     nrows, ncols = array.shape
     x = np.asarray(x, dtype=float)
     y = np.asarray(y, dtype=float)
+    east = west + ncols * ewres
+    south = north - nrows * nsres
     col = np.floor((x - west) / ewres).astype(int)
     row = np.floor((north - y) / nsres).astype(int)
-    inside = (col >= 0) & (col < ncols) & (row >= 0) & (row < nrows)
+    # Inside-ness is judged in map coordinates, inclusive of the outer edges; a
+    # point exactly on the east/south edge belongs to the last cell, where
+    # np.floor lands one index past the end, so clip rather than drop it.
+    inside = (x >= west) & (x <= east) & (y >= south) & (y <= north)
+    col = np.clip(col, 0, ncols - 1)
+    row = np.clip(row, 0, nrows - 1)
     out = np.full(np.shape(x), np.nan, dtype=float)
     out[inside] = array[row[inside], col[inside]]
     return out
@@ -78,6 +87,9 @@ def _read_topology_table(streams):
     """Return (cats, tostream-dict) from the vector's attribute table."""
     import pandas as pd
     from grass.script import vector_db_select
+    # !!!! GENERALIZE COLUMN NAME: 'tostream' is hardcoded here (and in
+    # v.stream.network's tostream_cat_column option). Plumb the chosen column
+    # name through instead of assuming the default. !!!!
     sel = vector_db_select(streams)
     df = pd.DataFrame(data=sel['values'].values(), columns=sel['columns'])
     if 'tostream' not in df.columns:
@@ -90,7 +102,12 @@ def _read_topology_table(streams):
 
 
 def _read_geometry(streams, cats):
-    """Return {cat: (x_array, y_array)} of segment vertices."""
+    """Return {cat: (x_array, y_array)} of segment vertices.
+
+    Consecutive coincident vertices are dropped: zero-length steps give a
+    repeated along-distance, which makes np.interp (densify) ill-defined and
+    np.gradient (channel_slope) divide by zero downstream.
+    """
     from grass.pygrass.vector import VectorTopo
     vt = VectorTopo(streams)
     vt.open('r')
@@ -98,9 +115,38 @@ def _read_geometry(streams, cats):
     for cat in cats:
         coords = vt.cat(cat_id=cat, vtype='lines')[0]
         en = coords.to_array()
-        geometry[cat] = (en[:, 0], en[:, 1])
+        x, y = en[:, 0], en[:, 1]
+        keep = np.concatenate(([True], (np.diff(x) != 0) | (np.diff(y) != 0)))
+        geometry[cat] = (x[keep], y[keep])
     vt.close()
     return geometry
+
+
+@contextmanager
+def _region_over(geometry, align):
+    """
+    Temporarily limit the GRASS region to the network's extent, aligned to the
+    ``align`` raster and grown one cell, so raster reads cover the whole network
+    and no more (efficiency), and so a region that does not already span the
+    network does not silently sample NaN. Restores the prior region on exit.
+
+    Uses an explicit save/restore (not use_temp_region) so it nests safely
+    inside a caller that already set its own temporary region (e.g. gunittest).
+    """
+    from grass.script import run_command, region as _region
+    xs = np.concatenate([gx for gx, _ in geometry.values()])
+    ys = np.concatenate([gy for _, gy in geometry.values()])
+    saved = _region()
+    try:
+        run_command('g.region', n=float(ys.max()), s=float(ys.min()),
+                    e=float(xs.max()), w=float(xs.min()), align=align,
+                    quiet=True)
+        run_command('g.region', grow=1, quiet=True)
+        yield
+    finally:
+        run_command('g.region', n=saved['n'], s=saved['s'], e=saved['e'],
+                    w=saved['w'], nsres=saved['nsres'], ewres=saved['ewres'],
+                    quiet=True)
 
 
 def _read_raster(rastname):
@@ -123,16 +169,20 @@ def read_stream_vector(streams, elevation=None, accumulation=None, slope=None,
     cats, tostream = _read_topology_table(streams)
     geometry = _read_geometry(streams, cats)
 
-    samples = {}
-    for name, rastname, mult in (('z', elevation, 1.0),
-                                 ('A', accumulation, accum_mult),
-                                 ('slope', slope, 1.0)):
-        if rastname:
-            arr, bounds = _read_raster(rastname)
-            samples[name] = {cat: mult * sample_raster(arr, gx, gy, **bounds)
-                             for cat, (gx, gy) in geometry.items()}
-        else:
-            samples[name] = None
+    specs = (('z', elevation, 1.0),
+             ('A', accumulation, accum_mult),
+             ('slope', slope, 1.0))
+    samples = {name: None for name, _, _ in specs}
+    align = elevation or accumulation or slope
+    if align:
+        # Sample within a region clipped to the network (see _region_over).
+        with _region_over(geometry, align):
+            for name, rastname, mult in specs:
+                if rastname:
+                    arr, bounds = _read_raster(rastname)
+                    samples[name] = {cat: mult * sample_raster(arr, gx, gy,
+                                                               **bounds)
+                                     for cat, (gx, gy) in geometry.items()}
 
     return assemble_records(cats, tostream, geometry,
                             z=samples['z'], A=samples['A'],

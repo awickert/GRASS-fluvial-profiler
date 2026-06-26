@@ -29,6 +29,18 @@ def test_sample_raster_out_of_range_is_nan():
     assert np.all(np.isnan(vals))
 
 
+def test_sample_raster_on_east_south_edge():
+    # Points exactly on the outer east/south edges belong to the last cell,
+    # not "outside" (regression: floor() lands one index past the end).
+    arr = np.arange(12, dtype=float).reshape(3, 4)  # east=40, south=0
+    bounds = dict(west=0.0, north=30.0, nsres=10.0, ewres=10.0)
+    # (40,15) -> col clipped 3, row 1 -> arr[1,3]=7 ; (20,0) -> row clipped 2 -> arr[2,2]=10
+    vals = rnx.sample_raster(arr, [40.0, 20.0], [15.0, 0.0], **bounds)
+    assert np.allclose(vals, [7.0, 10.0])
+    # just past the edge is still NaN
+    assert np.all(np.isnan(rnx.sample_raster(arr, [40.001], [15.0], **bounds)))
+
+
 def test_assemble_records_skips_none():
     cats = [1, 3]
     tostream = {1: 3, 3: 0}
