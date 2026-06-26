@@ -77,7 +77,7 @@ class TestBuildNetwork(TestCase):
     @classmethod
     def tearDownClass(cls):
         cls.runModule('g.remove', flags='f', type='raster',
-                      name='dem,accum,draindir')
+                      name='dem,accum,draindir,accum_holes')
         cls.runModule('g.remove', flags='f', type='vector', name='streams')
         cls.del_temp_region()
 
@@ -98,6 +98,28 @@ class TestBuildNetwork(TestCase):
         # it is currently unsupported and must fail loudly (gscript.fatal).
         with self.assertRaises(SystemExit):
             rnx.build_network('streams', accumulation='accum')
+
+    def test_assume_complete_allows_offmap(self):
+        # asserting a complete basin skips the off-map error and recovers
+        # positive drainage area (the negative head is treated as a boundary
+        # artifact)
+        G = rnx.build_network('streams', elevation='dem', accumulation='accum',
+                              assume_complete=True)
+        self.assertGreater(G.number_of_nodes(), 1)
+        A = np.concatenate([np.asarray(d['A'], float)
+                            for _, _, d in G.edges(data=True) if 'A' in d])
+        A = A[np.isfinite(A)]
+        self.assertTrue((A >= 0).all())
+
+    def test_nodata_accumulation_errors(self):
+        # NULL accumulation under part of the network is a coverage error, even
+        # with assume_complete (the NaN-coverage check is unconditional)
+        self.runModule('r.mapcalc',
+                       expression='accum_holes = if(y() > 50, null(), accum)',
+                       overwrite=True)
+        with self.assertRaises(SystemExit):
+            rnx.build_network('streams', elevation='dem',
+                              accumulation='accum_holes', assume_complete=True)
 
     def test_elevation_sampled(self):
         G = rnx.build_network('streams', elevation='dem')
