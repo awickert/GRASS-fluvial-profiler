@@ -279,13 +279,26 @@ def moving_average(s, y, window):
     """
     s = np.asarray(s, dtype=float)
     y = np.asarray(y, dtype=float)
+    n = len(y)
+    if n == 0:
+        return np.empty(0, dtype=float)
+    # Sort by s, then use prefix sums + searchsorted to get each point's window
+    # sum and (non-NaN) count in O(1): O(n log n) overall, not the naive O(n^2)
+    # per-point mask. NaNs are excluded from each window's mean.
+    order = np.argsort(s, kind='stable')
+    ss = s[order]
+    yy = y[order]
+    finite = ~np.isnan(yy)
+    csum = np.concatenate(([0.0], np.cumsum(np.where(finite, yy, 0.0))))
+    ccnt = np.concatenate(([0], np.cumsum(finite.astype(int))))
     half = window / 2.0
-    out = np.empty(len(y), dtype=float)
-    for i, si in enumerate(s):
-        sel = (s >= si - half) & (s <= si + half)
-        vals = y[sel]
-        vals = vals[~np.isnan(vals)]
-        out[i] = np.mean(vals) if len(vals) else np.nan
+    lo = np.searchsorted(ss, ss - half, side='left')
+    hi = np.searchsorted(ss, ss + half, side='right')
+    cnt = ccnt[hi] - ccnt[lo]
+    tot = csum[hi] - csum[lo]
+    res = np.where(cnt > 0, tot / np.where(cnt > 0, cnt, 1), np.nan)
+    out = np.empty(n, dtype=float)
+    out[order] = res
     return out
 
 

@@ -161,6 +161,25 @@ def test_slope_area():
     assert len(logA2) == 0
 
 
+def test_moving_average_matches_bruteforce():
+    # the vectorized O(n log n) implementation must match the naive per-point
+    # window mean, including NaN handling and unsorted input
+    s = np.array([0.0, 1.0, 1.5, 3.0, 7.0, 7.2])
+    y = np.array([1.0, np.nan, 3.0, 5.0, 2.0, 8.0])
+    w = 2.0
+    half = w / 2.0
+    ref = []
+    for si in s:
+        sel = (s >= si - half) & (s <= si + half)
+        vals = y[sel][~np.isnan(y[sel])]
+        ref.append(np.mean(vals) if len(vals) else np.nan)
+    ref = np.array(ref)
+    assert np.allclose(rnx.moving_average(s, y, w), ref, equal_nan=True)
+    idx = np.array([3, 0, 5, 1, 4, 2])  # unsorted input -> unsorted-matching out
+    assert np.allclose(rnx.moving_average(s[idx], y[idx], w), ref[idx],
+                       equal_nan=True)
+
+
 def test_dense_network_degradation():
     # A 2-vertex reach shorter than dx_target / window: must not crash, must
     # keep >= 2 points, and smoothing just averages what little it has.
