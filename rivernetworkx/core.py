@@ -259,8 +259,8 @@ def densify(s, arrays, dx_target):
     uniq = np.concatenate(([True], np.diff(s_sorted) > 0))
     s_u = s_sorted[uniq]
     if len(s_u) < 2:                       # zero-length / single-station segment
-        return s, {name: np.asarray(arr, dtype=float)
-                   for name, arr in arrays.items()}
+        return s_sorted, {name: np.asarray(arr, dtype=float)[order]
+                          for name, arr in arrays.items()}
     s0, s1 = s_u[0], s_u[-1]
     n = max(int(np.ceil((s1 - s0) / float(dx_target))) + 1, 2)
     new_s = np.linspace(s0, s1, n)
