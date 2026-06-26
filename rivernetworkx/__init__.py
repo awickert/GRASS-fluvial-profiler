@@ -21,6 +21,7 @@ from .core import (
     smooth_segment,
     channel_slope,
     slope_area,
+    fit_sa_break,
     make_json_safe,
     to_json_dict,
     export_json,

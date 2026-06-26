@@ -201,6 +201,29 @@ def test_json_roundtrip(tmp_path=None):
     assert np.isclose(H.nodes[1]["s"][0], 30.0 + DIAG)
 
 
+def _two_limb_cloud(logA_star=3.0, theta=0.5, h=-1.0, seed=0):
+    """Synthetic slope-area cloud: flat hillslope below the knot, power-law above."""
+    rng = np.random.default_rng(seed)
+    logA = np.linspace(1.5, 5.0, 600)
+    logS = np.where(logA <= logA_star, h, h - theta * (logA - logA_star))
+    logS = logS + rng.normal(0.0, 0.05, logA.shape)  # mild scatter
+    return logA, logS
+
+
+def test_fit_sa_break_recovers_knot():
+    logA, logS = _two_limb_cloud(logA_star=3.0, theta=0.5, h=-1.0)
+    fit = rnx.fit_sa_break(logA, logS)
+    assert fit is not None
+    assert abs(fit["logA_star"] - 3.0) < 0.1     # knot within a grid step or two
+    assert abs(fit["theta"] - 0.5) < 0.05        # fluvial concavity
+    assert abs(fit["hillslope_logS"] - (-1.0)) < 0.05
+    assert np.isclose(fit["A_star"], 10.0 ** fit["logA_star"])
+
+
+def test_fit_sa_break_too_few_points():
+    assert rnx.fit_sa_break([1.0, 2.0, 3.0], [0.0, -0.1, -0.2]) is None
+
+
 if __name__ == "__main__":
     for name, fn in sorted(globals().items()):
         if name.startswith("test_") and callable(fn):

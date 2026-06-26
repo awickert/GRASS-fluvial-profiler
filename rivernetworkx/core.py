@@ -370,6 +370,73 @@ def slope_area(records, window=None, log=False):
     return A, S
 
 
+def fit_sa_break(logA, logS, knots=None, min_side=10):
+    """
+    Locate the hillslope -> fluvial break in a slope--area cloud by a continuous,
+    constrained broken-stick fit in log--log space:
+
+        log S = h                              for log A <= log A*   (hillslope)
+        log S = h - theta * (log A - log A*)   for log A >  log A*   (fluvial)
+
+    The hillslope limb is flat (slope independent of area); the fluvial limb is a
+    power law ``S ~ A^-theta``. The two limbs join at the knot ``log A*`` -- the
+    predicted channel-initiation (channel-head) drainage area. Fitting both limbs
+    jointly -- scan the knot, least-squares ``(h, slope)`` at each, keep the knot
+    with the smallest residual -- is the rigorous form of "fit the channel power
+    law, fit the hillslope constant, take their intersection": the limbs meet at
+    A* by construction.
+
+    Operates on whatever ``(logA, logS)`` it is given -- the whole network
+    (one basin-wide A*) or a single flowline (a local A*). Feed it the
+    ``log=True`` output of :func:`slope_area`, ideally after dropping flat-valley
+    artifacts (S ~ 0) and any unwanted high-area trunk reaches.
+
+    Parameters
+    ----------
+    logA, logS : array-like
+        Paired log10 drainage area and log10 channel slope.
+    knots : array-like, optional
+        Candidate ``log A*`` values to scan. Default: 200 points spanning the
+        5th--95th percentile of ``logA`` (knots at the extremes leave too little
+        data on one side to constrain a limb).
+    min_side : int
+        Require at least this many points on each side of the knot, so neither
+        limb is fit from a handful of points.
+
+    Returns
+    -------
+    dict or None
+        ``{'logA_star', 'A_star', 'theta', 'hillslope_logS', 'rss', 'n'}``, or
+        ``None`` if there are too few finite points to fit.
+    """
+    logA = np.asarray(logA, dtype=float)
+    logS = np.asarray(logS, dtype=float)
+    good = np.isfinite(logA) & np.isfinite(logS)
+    logA, logS = logA[good], logS[good]
+    if logA.size < 2 * min_side:
+        return None
+    if knots is None:
+        lo, hi = np.percentile(logA, [5, 95])
+        knots = np.linspace(lo, hi, 200)
+
+    best = None
+    for k in np.asarray(knots, dtype=float):
+        n_left = int(np.count_nonzero(logA <= k))
+        if n_left < min_side or (logA.size - n_left) < min_side:
+            continue
+        # Basis: a constant plus a hinge that is 0 on the hillslope side and
+        # rises downstream of the knot, so the fitted left limb is exactly flat.
+        X = np.column_stack([np.ones_like(logA), np.maximum(0.0, logA - k)])
+        coef, *_ = np.linalg.lstsq(X, logS, rcond=None)
+        rss = float(np.sum((logS - X @ coef) ** 2))
+        if best is None or rss < best['rss']:
+            h, slope = float(coef[0]), float(coef[1])
+            best = {'logA_star': float(k), 'A_star': float(10.0 ** k),
+                    'theta': -slope, 'hillslope_logS': h,
+                    'rss': rss, 'n': int(logA.size)}
+    return best
+
+
 #######
 # I/O #
 #######
