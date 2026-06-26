@@ -244,10 +244,13 @@ def main():
 
     # Optional: export the analyzed sub-network as node-link JSON
     if outjson:
-        if direction == 'upstream':
-            H = rnx.upstream_subnetwork(G, start)
-        else:
-            H = G.subgraph(set(selected_cats) | {rnx.OFFMAP}).copy()
+        # downstream keeps the off-map outlet node; upstream ends at `start`.
+        # selected_cats already is the chosen sub-network's node set, so reuse
+        # it rather than recomputing the upstream sub-network.
+        nodes = set(selected_cats)
+        if direction != 'upstream':
+            nodes |= {rnx.OFFMAP}
+        H = G.subgraph(nodes).copy()
         rnx.export_json(H, outjson)
         gscript.message("Wrote JSON sub-network: %s" % outjson)
 
