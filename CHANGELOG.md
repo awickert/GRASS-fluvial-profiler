@@ -7,27 +7,54 @@ and this project aims to follow [Semantic Versioning](https://semver.org/).
 
 ## [Unreleased]
 
+This release migrates the toolkit onto a single shared river-network library,
+modernizes the modules, and makes several correctness fixes. The API is still
+pre-1.0 and may change.
+
 ### Added
 - **`rivernetworkx`**: a new importable Python package (pure NetworkX, no GRASS)
   that single-sources the river-network logic — graph construction
   (`build_network`/`build_graph`), raster sampling, breadth-first traversal,
-  cumulative-distance accumulation, and node-link JSON I/O. The GRASS modules
-  are now thin consumers of it, and the same representation is reusable outside
-  GRASS (e.g. the GRLP coupling).
-
-### Changed
+  cumulative-distance accumulation, per-segment smoothing and densification,
+  channel slope (&minus;d&#8202;z/d&#8202;s) and slope&ndash;area, and node-link
+  JSON I/O. The GRASS modules are now thin consumers of it, and the same
+  representation is reusable outside GRASS (e.g. the GRLP coupling).
 - **`v.stream.network`** gains an optional `json=` export (with `elevation=`,
   `accumulation=`, `accum_mult=`): it builds the NetworkX river-network graph,
   samples rasters along each segment, computes cumulative distance upstream of
   the outlet, and writes node-link JSON. This is the capability formerly
-  provided by the separate `v.stream.networkx` module. Diverging (distributary
-  or braided) networks now stop with a clear error instead of a partial result.
-- **`v.stream.profiler`** rebuilt on `rivernetworkx` (it was non-functional on
-  current GRASS GIS and pandas). It now walks either downstream to the outlet or
-  upstream through all tributaries, samples elevation/accumulation/slope along
-  the channel, optionally densifies (`dx_target=`) and smooths (`window=`), and
-  outputs a text long-profile table and/or a node-link JSON sub-network
-  (`json=`). The previous branching bug is fixed by construction.
+  provided by the separate `v.stream.networkx` module.
+
+### Changed
+- **`v.stream.profiler`** rebuilt on `rivernetworkx`. It walks either downstream
+  to the outlet or upstream through all tributaries, samples
+  elevation/accumulation/slope along the channel, optionally densifies
+  (`dx_target=`) and smooths (`window=`) **per segment** (smoothing and
+  densification never cross tributary junctions, preserving the natural breaks),
+  and outputs a text long-profile table and/or a node-link JSON sub-network
+  (`json=`).
+- Drainage area sampled from `r.watershed` is returned as a positive magnitude
+  (the outlet cells, which GRASS marks negative as a boundary flag, are
+  recovered).
+- `examples/clean_coarsen_network.py` now post-processes the
+  `v.stream.network json=` export; its accumulation array is optional.
+
+### Fixed
+- **`v.stream.profiler`** was non-functional on current GRASS GIS and pandas (a
+  stale `grass.raster` import and a `Series`&rarr;`int` coercion); it runs again,
+  and its long-standing branching bug is fixed by construction.
+- **`v.stream.network`** writes the off-map outlet `tostream` as `0` (an earlier
+  partial migration wrote `-1`); diverging (distributary/braided) networks now
+  stop with a clear error instead of writing a partial `tostream`.
+- Raster sampling is limited to the network's extent (covers the whole network
+  even when the current region does not, and avoids reading a full large
+  region), includes points exactly on the east/south region edges, and tolerates
+  coincident vertices.
+- Incomplete catchments (off-map upstream contributing area, flagged by negative
+  `r.watershed` accumulation reaching a channel head) are caught with a clear
+  error rather than silently producing a misleading network.
+- `export_json` emits standards-compliant JSON (non-finite floats as `null`, not
+  the bare `NaN` token that strict parsers reject); `load_json` restores them.
 
 ### Removed
 - **`v.stream.networkx`**: retired. Its sole job (build graph &rarr; JSON) is now
