@@ -24,7 +24,7 @@ from contextlib import contextmanager
 
 import numpy as np
 
-from .core import build_graph
+from .core import OFFMAP, build_graph
 
 
 ########################
@@ -245,7 +245,7 @@ def read_stream_vector(streams, elevation=None, accumulation=None, slope=None,
 
 
 def build_network(streams, elevation=None, accumulation=None, slope=None,
-                  accum_mult=1.0, outlet=0):
+                  accum_mult=1.0, outlet=OFFMAP):
     """Read a GRASS stream-network vector and build the NetworkX DiGraph."""
     records = read_stream_vector(streams, elevation=elevation,
                                  accumulation=accumulation, slope=slope,
