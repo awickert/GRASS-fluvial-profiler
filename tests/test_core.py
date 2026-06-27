@@ -272,6 +272,36 @@ def test_chi_order_invariant():
     assert np.all(np.diff(c) < 0)                # index 0 is upstream = largest chi
 
 
+def test_linfit_r2_dw():
+    from rivernetworkx.core import _linfit_r2_dw
+    x = np.arange(10.0)
+    r2, _ = _linfit_r2_dw(x, 2.0 * x + 1.0)      # perfect line
+    assert r2 > 0.9999
+    r2c, dwc = _linfit_r2_dw(x, x ** 2)          # convex -> line fit autocorrelated
+    assert r2c < 1.0 and dwc < 2.0               # DW < 2 = positive autocorrelation
+
+
+def test_channel_head_chi_split_matches_argmax_of_score():
+    # Faithful implementation check: the returned index is the argmax of
+    # test = R2_channel - (DW_hillslope - 2)/2 over all valid splits.
+    from rivernetworkx.core import _linfit_r2_dw
+    rng = np.random.RandomState(0)
+    chi = np.linspace(8.0, 0.0, 50)
+    z = 1.5 * chi + np.where(chi > 4.0, 0.4 * (chi - 4.0) ** 2, 0.0) \
+        + rng.normal(0, 0.05, 50)
+    m = 6
+    best = max(
+        ((_linfit_r2_dw(chi[h:], z[h:])[0]
+          - (_linfit_r2_dw(chi[:h], z[:h])[1] - 2.0) / 2.0), h)
+        for h in range(m, len(chi) - m + 1)
+    )[1]
+    assert rnx.channel_head_chi_split(chi, z, min_segment_length=m) == best
+
+
+def test_channel_head_chi_split_too_short():
+    assert rnx.channel_head_chi_split([3, 2, 1], [3, 2, 1], min_segment_length=10) == -1
+
+
 if __name__ == "__main__":
     for name, fn in sorted(globals().items()):
         if name.startswith("test_") and callable(fn):

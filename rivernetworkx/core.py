@@ -432,6 +432,63 @@ def chi(area, flow_distance, theta=0.5, ref_area=1.0, base_chi=0.0):
     return chi_vals[::-1] if flip else chi_vals
 
 
+def _linfit_r2_dw(x, y):
+    """Least-squares line ``y ~ x``; return ``(R2, durbin_watson)`` of the fit,
+    matching LSDTopoTools ``simple_linear_regression``: ``R2 = 1 - SSE/SST`` and
+    ``DW = sum((e_i - e_{i-1})^2) / sum(e_i^2)`` with residual = predicted -
+    observed (DW and R2 are sign-invariant in the residual)."""
+    x = np.asarray(x, dtype=float)
+    y = np.asarray(y, dtype=float)
+    xm = x.mean()
+    sxx = np.sum((x - xm) ** 2)
+    if sxx == 0:
+        return 0.0, 2.0
+    m = np.sum((x - xm) * (y - y.mean())) / sxx
+    resid = (m * x + (y.mean() - m * xm)) - y
+    sst = np.sum((y - y.mean()) ** 2)
+    r2 = 1.0 - np.sum(resid ** 2) / sst if sst > 0 else 0.0
+    bottom = np.sum(resid ** 2) or 1e-10
+    dw = np.sum(np.diff(resid) ** 2) / bottom
+    return r2, dw
+
+
+def channel_head_chi_split(chi, elevation, min_segment_length=10):
+    """
+    DrEICH channel-head detector on a single hilltop -> junction profile
+    (Clubb et al., 2014).
+
+    Given ``chi`` and ``elevation`` ordered from the upslope hilltop (index 0,
+    largest chi) down to a downstream junction (smallest chi), try every split
+    into an upslope **hillslope** segment and a downslope **channel** segment,
+    each at least ``min_segment_length`` nodes. For each split, regress
+    elevation on ``chi`` within each segment and score
+
+        test = R2_channel - (DurbinWatson_hillslope - 2) / 2
+
+    which rewards a channel reach that is *linear in chi-z* (high R2) and a
+    hillslope reach that is *not* (autocorrelated residuals -> DW far below 2).
+    The channel head is the first node of the best-scoring channel segment.
+
+    Returns the index (into the input arrays) of the channel head, or ``-1`` if
+    the profile is shorter than ``2 * min_segment_length`` nodes.
+    """
+    chi = np.asarray(chi, dtype=float)
+    elevation = np.asarray(elevation, dtype=float)
+    n = len(chi)
+    if n < 2 * min_segment_length:
+        return -1
+    best_test = -np.inf
+    best_idx = -1
+    for hill_len in range(min_segment_length, n - min_segment_length + 1):
+        r2_chan, _ = _linfit_r2_dw(chi[hill_len:], elevation[hill_len:])
+        _, dw_hill = _linfit_r2_dw(chi[:hill_len], elevation[:hill_len])
+        test = r2_chan - (dw_hill - 2.0) / 2.0
+        if test > best_test:
+            best_test = test
+            best_idx = hill_len
+    return best_idx
+
+
 def fit_sa_break(logA, logS, knots=None, min_side=10):
     """
     Locate the hillslope -> fluvial break in a slope--area cloud by a continuous,
