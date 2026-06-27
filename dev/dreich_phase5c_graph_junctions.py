@@ -84,10 +84,15 @@ for (r0, c0) in src:
         visited[r, c] = True
         consec = consec + 1 if tcurv[r, c] > CURV_THRESH else 0
         if consec > NCONNECT:
-            # the C++ valley junction is the UPSTREAM junction of the valley's
-            # link = the valley's own source, kept distinct per valley (not the
-            # shared downstream confluence).
-            vjuncs[(r0, c0)] = int(cat[r0, c0]); break
+            # dedup by the downstream confluence (matches the C++ count), but keep
+            # the valley's SOURCE as the head-finding anchor (= upstream junction).
+            X = (r, c)
+            while True:
+                nb = dn(*X)
+                if nb is None or SO[nb] > SO[X]:
+                    break
+                X = nb
+            vjuncs.setdefault(X, (r0, c0)); break
         nb = dn(r, c)
         if nb is None or visited[nb]:
             break
@@ -117,11 +122,12 @@ def trace_to(r, c, target, maxlen=3000):
     return path
 
 head_cells = []
-for (vj, kv) in vjuncs.items():
+for (X, asrc) in vjuncs.items():
+    kv = int(cat[asrc])
     anchor = second_order_anchor(kv)
     if anchor is None:
         continue
-    pr = farthest_upslope(*vj) + trace_to(vj[0], vj[1], anchor)
+    pr = farthest_upslope(*asrc) + trace_to(asrc[0], asrc[1], anchor)
     if len(pr) < 2 * MINSEG + 2:
         continue
     rs = np.array([p[0] for p in pr]); cs = np.array([p[1] for p in pr])
