@@ -302,6 +302,45 @@ def test_channel_head_chi_split_too_short():
     assert rnx.channel_head_chi_split([3, 2, 1], [3, 2, 1], min_segment_length=10) == -1
 
 
+def test_channel_head_chi_split_matches_cpp_on_distinct_elevations():
+    # Literal transcription of LSDChannel::calculate_channel_heads, compared on
+    # realistic (distinct-elevation) profiles. They must agree exactly. (The C++
+    # last-equal-elevation tie behavior is a non-principled artifact that cannot
+    # arise on a real float DEM, so we do not replicate it.)
+    def cpp_linreg(x, y):
+        x = np.asarray(x, float); y = np.asarray(y, float); n = len(x)
+        sx, sy, sxx, sxy = x.sum(), y.sum(), (x * x).sum(), (x * y).sum()
+        den = n * sxx - sx * sx
+        if den == 0:
+            return 0.0, 2.0
+        m = (n * sxy - sx * sy) / den
+        resid = (m * x + (sy - m * sx) / n) - y
+        sst = np.sum((y - y.mean()) ** 2)
+        r2 = 1 - np.sum(resid ** 2) / sst if sst > 0 else 0.0
+        dw = np.sum(np.diff(resid) ** 2) / (np.sum(resid ** 2) or 1e-10)
+        return r2, dw
+
+    def cpp_head(chi, z, ms):
+        end = len(chi); best, ei = 0.0, None
+        for h in range(ms, end - ms + 1):
+            r2 = cpp_linreg(chi[h:end], z[h:end])[0]
+            dw = cpp_linreg(chi[:h], z[:h])[1]
+            t = r2 - (dw - 2.0) / 2.0
+            if t > best:
+                best, ei = t, h
+        return ei if ei is not None else -1   # distinct elevations -> index == node
+
+    rng = np.random.RandomState(3)
+    for _ in range(300):
+        n = rng.randint(30, 120); ts = rng.randint(10, n - 10)
+        chi = np.sort(rng.uniform(0, 10, n))[::-1]
+        z = 1.2 * chi + np.where(np.arange(n) < ts, 0.5 * (chi - chi[ts]) ** 2, 0.0) \
+            + rng.normal(0, 0.08, n)
+        if len(np.unique(z)) != n:
+            continue
+        assert rnx.channel_head_chi_split(chi, z, 8) == cpp_head(chi, z, 8)
+
+
 if __name__ == "__main__":
     for name, fn in sorted(globals().items()):
         if name.startswith("test_") and callable(fn):
