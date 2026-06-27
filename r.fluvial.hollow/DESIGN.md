@@ -25,8 +25,14 @@ validity gate that refuses to invent a hollow where there is no rollover.
 *(validated: MBR R ≈ 0.95, Trempealeau R ≈ 0.49)*
 1. Per-cell slope over **all cells** (`r.slope.aspect`, gradient) — not an
    extracted network (§1).
-2. Pair (accumulation, slope) for every cell → log–log; drop flat-cell
-   artifacts (S below a small floor) and the high-A trunk tail.
+2. Pair (accumulation, slope) for every cell → log–log. **Clean the floodplain:**
+   mask the low, flat valley floor with a data-driven **elevation cut** (the
+   lowest elevations that are predominantly flat — below the bluff), and drop
+   residual flat-cell artifacts (S below a small floor, e.g. 10⁻³) and the
+   high-A trunk tail. This matters: on Trempealeau the floodplain flats sit right
+   under the transition area, and unfiltered they wreck the fit (R≈0.25, A*≈20);
+   masked + floored, R≈0.6. Least-cost routing imposes fake gradients across the
+   flats, so geographic removal beats chasing the artifacts in slope–area space.
 3. Bin by log A → **median log S per bin** (require a minimum count per bin).
 4. Fit the constrained broken-stick to the **binned medians** → knot `log A*`,
    `θ`, hillslope level; compute **R** (variance reduction vs. a single line)
@@ -43,24 +49,38 @@ validity gate that refuses to invent a hollow where there is no rollover.
 8. `read_stream_segments` (topology-free) + sample elevation/accumulation;
    build O(N) endpoint-hash flowlines (source → downstream).
 
-**Phase C — place the transitions**
-- **v1 (validated, shippable): global `A*` everywhere** — mark each point where
-  drainage area first crosses `A*` along the network
-  (`colluvial_fluvial_transition`); dedup coincident points.
-- **v2 (local `A*`, *not yet validated*):** per-flowline (or windowed) binned
-  broken-stick → a *local* `A*`, same validity gate, placed per flowline.
-  Caveat: per-flowline slope is noise-limited (§4) and windowed `A*` was
-  salt-and-pepper at uniform MBR, so v2 earns its keep only on heterogeneous
-  terrain; uniform basins fall back to the global `A*`.
+**Phase C — place the transitions: accumulate-and-prune (*machinery validated*)**
+
+Per-flowline detection alone fails: on Trempealeau **94% of flowlines are too
+data-starved** to fit a rollover — mostly short first-order tributaries that
+drain straight into a big channel (so there is nothing upstream to add), and the
+flat hillslope limb lives in `A < T` cells that the channel network never
+contains. The fix (Andy's): walk **headwater → downstream**, growing each
+branch's **all-cell contributing-area** slope–area until a valid rollover
+appears, then **mark** the transition and **prune** every tributary in that
+subwatershed (they inherit the same hollow). Implementation: one
+`r.stream.basins` call gives a cell→segment map; the topology's upstream
+subnetwork (`networkx.ancestors`) gives each candidate's watershed cells; fit the
+binned broken-stick on those, accept on the validity gate, prune the subtree.
+This reaches the **finest scale that still has the data**, is spatially adaptive,
+and the prune collapses clusters.
+
+First pass on Trempealeau (bluff window): **427 hollows, 60% of segments pruned**,
+detection at a median ~2140-cell scale, local `A*` median ~76 cells (15–1772) —
+genuine spatially-varying transitions. Validates the *machinery*; accuracy is
+still owed on MBR vs Clubb. The ~40% unresolved branches feed the false-negative
+recall check below. **Requires the `r.stream.basins` addon.**
 
 **Phase D — output**
 9. Channel-transition points (vector) carrying `A*`, source segment, and an
    R/confidence value; optionally the `A*`-thresholded channel network (sources
    pinned at the transitions, ready for `r.stream.distance`).
 
-The honest fault line is Phase C: ship **v1** (global `A*`) now, since it is
-validated; treat **v2** (local `A*`) as the refinement to prove out on
-heterogeneous terrain.
+The global `A*` from Phase A is the **fallback** for any branch the
+accumulate-and-prune leaves unresolved — never skip it, never per-flowline-
+*average* it. Status: machinery validated on Trempealeau; **accuracy owed on MBR
+(vs Clubb)**, and a **false-negative map** (unresolved branches whose local
+slope–area matches a nearby hollow's signature) is the recall check.
 
 ## Validation (Mid Bailey Run, OH — 1 m 3DEP; Clubb et al. 2014's 53 mapped heads)
 
