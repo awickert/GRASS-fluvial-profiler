@@ -370,6 +370,68 @@ def slope_area(records, window=None, log=False):
     return A, S
 
 
+def chi(area, flow_distance, theta=0.5, ref_area=1.0, base_chi=0.0):
+    """
+    Integral channel coordinate ``chi`` (Perron & Royden, 2013) along a single
+    flow path:
+
+        chi(x) = integral of (ref_area / A(x'))^theta  dx'
+
+    integrated *upstream* from a downstream reference value ``base_chi``. ``chi``
+    has units of length and linearises the steady-state detachment-limited long
+    profile (elevation becomes ~linear in ``chi`` along a channel), so plotting
+    elevation against ``chi`` separates channel reaches (linear) from hillslopes
+    (non-linear) -- the basis of the DrEICH channel-head method (Clubb et al.,
+    2014) -- and exposes profile disequilibrium.
+
+    Parameters
+    ----------
+    area : (n,) array_like
+        Drainage area at each node along one flow path (same units as
+        ``ref_area``); must be strictly positive.
+    flow_distance : (n,) array_like
+        Cumulative flow distance along the same path (monotonic; only successive
+        differences are used, so any consistent origin is fine).
+    theta : float
+        Concavity index ``m/n`` (Clubb et al. use ~0.45-0.5).
+    ref_area : float
+        Reference drainage area ``A_0``; sets the (arbitrary) scale of ``chi``.
+    base_chi : float
+        ``chi`` at the downstream end of the path.
+
+    Returns
+    -------
+    chi : (n,) ndarray
+        ``chi`` at each node, in the same order as the inputs.
+
+    Notes
+    -----
+    Order-agnostic: the downstream end is taken to be the higher-drainage-area
+    end, and ``chi`` increases upstream. Discretised as in LSDTopoTools
+    (Clubb et al., 2014): each step adds ``(ref_area / A_upstream)^theta``
+    times the step length.
+    """
+    area = np.asarray(area, dtype=float)
+    flow_distance = np.asarray(flow_distance, dtype=float)
+    n = len(area)
+    if n == 0:
+        return np.array([], dtype=float)
+    if n == 1:
+        return np.array([base_chi], dtype=float)
+    # Orient upstream (index 0) -> downstream (index -1) by drainage area, so the
+    # downstream (largest-area) node anchors at base_chi and chi grows upstream.
+    flip = area[0] > area[-1]
+    if flip:
+        area = area[::-1]
+        flow_distance = flow_distance[::-1]
+    seg = np.abs(np.diff(flow_distance))            # length of each up->down step
+    integrand = (ref_area / area) ** theta          # evaluated at the upstream node
+    incr = integrand[:-1] * seg                     # chi added across each step
+    # chi[i] = base_chi + sum(incr[i:]); downstream node (i = n-1) = base_chi
+    chi_vals = np.concatenate([np.cumsum(incr[::-1])[::-1], [0.0]]) + base_chi
+    return chi_vals[::-1] if flip else chi_vals
+
+
 def fit_sa_break(logA, logS, knots=None, min_side=10):
     """
     Locate the hillslope -> fluvial break in a slope--area cloud by a continuous,

@@ -242,6 +242,36 @@ def test_colluvial_fluvial_transition():
     assert np.isclose(by_cat[8][0], 12.0) and np.isclose(by_cat[8][1], 9.0)
 
 
+def test_chi_constant_area_is_distance():
+    # A == ref_area everywhere -> integrand == 1 -> chi = flow distance from the
+    # downstream end, growing upstream.
+    dist = np.array([0.0, 1.0, 3.0, 6.0])        # upstream -> downstream cumulative
+    area = np.array([10.0, 10.0, 10.0, 10.0])    # downstream end is index -1
+    c = rnx.chi(area, dist, theta=0.5, ref_area=10.0, base_chi=0.0)
+    # downstream node (max-distance end here is index -1) anchors at 0;
+    # chi at each node = distance back to that downstream end.
+    assert np.isclose(c[-1], 0.0)
+    assert np.allclose(c, [6.0, 5.0, 3.0, 0.0])
+
+
+def test_chi_theta_zero_ignores_area():
+    dist = np.array([0.0, 2.0, 5.0])
+    area = np.array([1.0, 50.0, 900.0])          # increases downstream
+    c = rnx.chi(area, dist, theta=0.0, ref_area=1.0)
+    assert np.allclose(c, [5.0, 3.0, 0.0])       # = distance from downstream end
+
+
+def test_chi_order_invariant():
+    dist = np.array([0.0, 1.0, 2.5, 4.0])
+    area = np.array([5.0, 20.0, 100.0, 500.0])   # upstream(small) -> downstream(big)
+    c = rnx.chi(area, dist)
+    # reversed inputs (downstream-first) must give the reversed same chi values
+    c_rev = rnx.chi(area[::-1], dist[::-1])
+    assert np.allclose(c, c_rev[::-1])
+    # chi strictly increases upstream (toward the small-area end)
+    assert np.all(np.diff(c) < 0)                # index 0 is upstream = largest chi
+
+
 if __name__ == "__main__":
     for name, fn in sorted(globals().items()):
         if name.startswith("test_") and callable(fn):

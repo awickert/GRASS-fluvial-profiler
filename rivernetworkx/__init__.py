@@ -21,6 +21,7 @@ from .core import (
     smooth_segment,
     channel_slope,
     slope_area,
+    chi,
     fit_sa_break,
     colluvial_fluvial_transition,
     make_json_safe,
