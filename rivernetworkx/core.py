@@ -188,6 +188,29 @@ def downstream_path(G, node, outlet=OFFMAP):
     return nx.shortest_path(G, node, outlet)
 
 
+def strahler_order(G, outlet=OFFMAP):
+    """
+    Strahler stream order per segment, on the segment DiGraph from
+    :func:`build_graph` (each node is a segment; edges point downstream).
+
+    A segment with no upstream tributaries is order 1; where tributaries meet, the
+    order is the largest incoming order, incremented by one only when at least two
+    tributaries share that largest order. Returns ``{segment_id: order}`` (the
+    ``outlet`` node is skipped). Used by the DrEICH valley/junction logic to find
+    where stream order increases.
+    """
+    order = {}
+    for n in nx.topological_sort(G):
+        if n == outlet:
+            continue
+        ups = sorted((order[p] for p in G.predecessors(n) if p != outlet), reverse=True)
+        if not ups:
+            order[n] = 1
+        else:
+            order[n] = ups[0] + 1 if (len(ups) > 1 and ups[1] == ups[0]) else ups[0]
+    return order
+
+
 ###############################
 # PROFILE ASSEMBLY / RESAMPLE #
 ###############################

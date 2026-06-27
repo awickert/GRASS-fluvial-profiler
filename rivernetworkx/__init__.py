@@ -15,6 +15,7 @@ from .core import (
     bfs_upward,
     upstream_subnetwork,
     downstream_path,
+    strahler_order,
     assemble_downstream_profile,
     densify,
     moving_average,

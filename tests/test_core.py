@@ -242,6 +242,21 @@ def test_colluvial_fluvial_transition():
     assert np.isclose(by_cat[8][0], 12.0) and np.isclose(by_cat[8][1], 9.0)
 
 
+def test_strahler_order():
+    # 1,2 -> 3 ; 3,4 -> 5 ; 5 -> outlet 0
+    recs = [
+        {"cat": 1, "tostream": 3, "x": [0.0, 1.0], "y": [2.0, 1.0]},
+        {"cat": 2, "tostream": 3, "x": [2.0, 1.0], "y": [2.0, 1.0]},
+        {"cat": 3, "tostream": 5, "x": [1.0, 1.0], "y": [1.0, 0.0]},
+        {"cat": 4, "tostream": 5, "x": [3.0, 1.0], "y": [1.0, 0.0]},
+        {"cat": 5, "tostream": 0, "x": [1.0, 1.0], "y": [0.0, -1.0]},
+    ]
+    so = rnx.strahler_order(rnx.build_graph(recs))
+    assert so[1] == 1 and so[2] == 1 and so[4] == 1   # headwaters
+    assert so[3] == 2                                  # two order-1 tributaries meet -> +1
+    assert so[5] == 2                                  # order-2 + order-1 -> no increment
+
+
 def test_chi_constant_area_is_distance():
     # A == ref_area everywhere -> integrand == 1 -> chi = flow distance from the
     # downstream end, growing upstream.
