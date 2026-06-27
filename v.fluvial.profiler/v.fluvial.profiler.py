@@ -17,7 +17,7 @@
 #############################################################################
 #
 # REQUIREMENTS:
-#      -  uses inputs from r.stream.extract and v.fluvial.network
+#      -  uses inputs from r.stream.extract and v.stream.network
 #      -  the rivernetworkx Python package (pip install -e . in the GRASS env)
 
 # More information
@@ -38,7 +38,7 @@
 #%end
 #%option G_OPT_V_INPUT
 #%  key: streams
-#%  label: Vector stream network, linked by v.fluvial.network
+#%  label: Vector stream network, linked by v.stream.network
 #%  required: yes
 #%end
 #%option G_OPT_V_OUTPUT
@@ -216,7 +216,7 @@ def main():
 
     # Read the linked network into edge records (with rasters sampled along each
     # segment) and build the graph. read_stream_vector errors helpfully if the
-    # vector has not been linked by v.fluvial.network (no 'tostream' column).
+    # vector has not been linked by v.stream.network (no 'tostream' column).
     records = rnx.read_stream_vector(streams, elevation=elevation,
                                      accumulation=accumulation, slope=slope,
                                      accum_mult=accum_mult,

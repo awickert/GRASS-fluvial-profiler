@@ -22,7 +22,7 @@ stream network extracted by
 
 | Module | Purpose |
 | --- | --- |
-| **`v.fluvial.network`** | Adds topology columns to a stream-network vector: upstream/downstream node coordinates and `tostream`, the category of the next segment downstream (`0` if the stream leaves the map). Optionally (`json=`) exports the linked network as a [NetworkX](https://networkx.org/) node-link JSON graph, sampling elevation and flow accumulation along each segment and computing cumulative distance upstream of the outlet. |
+| **`v.stream.network`** | Adds topology columns to a stream-network vector: upstream/downstream node coordinates and `tostream`, the category of the next segment downstream (`0` if the stream leaves the map). Optionally (`json=`) exports the linked network as a [NetworkX](https://networkx.org/) node-link JSON graph, sampling elevation and flow accumulation along each segment and computing cumulative distance upstream of the outlet. |
 | **`v.fluvial.profiler`** | Builds and plots river long profiles and slope&ndash;accumulation (e.g., slope&ndash;area) diagrams for a single downstream-directed channel. |
 | **`r.fluvial.hollow`** | Maps the **colluvial-to-fluvial transition** (the downslope limit of colluvial hollows, where channels become fluvial) from the slope&ndash;area break. Reads a deliberately over-extracted network, fits the break drainage area `A*`, and outputs transition points. This is a reproducible *process* boundary &mdash; the upstream limit of the fluvial domain &mdash; distinct from a morphological field channel head, which lies upslope within the hollow. |
 
@@ -47,7 +47,7 @@ can install one with `g.extension`, pointing its `url` at wherever the module
 lives &mdash; a local path or this repository:
 
 ```
-g.extension extension=v.fluvial.network url=<path-or-URL-to-the-module>
+g.extension extension=v.stream.network url=<path-or-URL-to-the-module>
 ```
 
 Alternatively, copy the module's `.py` file into your GRASS addons `scripts/`
@@ -66,7 +66,7 @@ r.stream.extract elevation=DEM accumulation=accumulation \
     stream_raster=streams stream_vector=streams \
     threshold=30000000 direction=draindir d8cut=0 --overwrite
 
-v.fluvial.network map=streams elevation=DEM accumulation=accumulation \
+v.stream.network map=streams elevation=DEM accumulation=accumulation \
     json=network.json
 ```
 
@@ -75,7 +75,7 @@ See each module's manual page for full option lists and examples.
 ### Post-processing
 
 `examples/clean_coarsen_network.py` is an optional "stage 2" for the JSON
-exported by `v.fluvial.network json=`: it despikes and smooths the DEM-sampled
+exported by `v.stream.network json=`: it despikes and smooths the DEM-sampled
 elevations along each segment and coarsens (resamples) the network, producing a
 cleaner, thinner network suitable as input to a downstream long-profile model
 such as [GRLP](https://github.com/awickert/GRLP). For example:

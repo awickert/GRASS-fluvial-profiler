@@ -1,7 +1,7 @@
 #!/usr/bin/env python
 ############################################################################
 #
-# MODULE:       v.fluvial.network
+# MODULE:       v.stream.network
 #
 # AUTHOR(S):    Andrew Wickert
 #
@@ -223,7 +223,7 @@ def main():
         elif len(cats) > 1:
             gscript.fatal(
                 "Diverging network at segment cat=%s: its downstream end "
-                "connects to multiple segments (cats=%s). v.fluvial.network "
+                "connects to multiple segments (cats=%s). v.stream.network "
                 "represents one downstream link per segment (a tree / "
                 "converging network), so distributary or braided networks are "
                 "not supported. Inspect the r.stream.extract output near this "

@@ -5,12 +5,12 @@
 #
 # AUTHOR(S):    Andrew Wickert
 #
-# PURPOSE:      Post-process a river network exported by v.fluvial.network
+# PURPOSE:      Post-process a river network exported by v.stream.network
 #               (json= option): despike and smooth the elevations along each
 #               segment, then coarsen (resample) the network, and re-export
 #               it as JSON.
 #
-#               This is the "stage 2" step between v.fluvial.network (which
+#               This is the "stage 2" step between v.stream.network (which
 #               extracts and links the network from a DEM) and a downstream model such
 #               as GRLP (which evolves its long profiles). Raw DEM-sampled
 #               elevations are noisy and densely sampled; this cleans and
@@ -62,7 +62,7 @@ def bfs_upward(G, start):
 
 def set_outlet_elevations(G, outlet_drop=4e-4):
     """
-    v.fluvial.network exports outlet (off-map) nodes with z = nan, because
+    v.stream.network exports outlet (off-map) nodes with z = nan, because
     they lie beyond the domain. If left as nan, the smoothing step propagates
     the nan upstream through the network. Replace each nan outlet elevation
     with the lowest channel elevation entering that node, dropped by
@@ -234,7 +234,7 @@ def downsample_edge_along_s_new(
     for u, v, data in H.edges(data=True):
 
         # Required geometry/elevation attrs; accumulation (A) is optional, since
-        # v.fluvial.network json= may be run without an accumulation raster.
+        # v.stream.network json= may be run without an accumulation raster.
         if any(data.get(a) is None for a in (s_attr, x_attr, y_attr, z_attr)):
             continue
         s = np.asarray(data[s_attr])
@@ -392,10 +392,10 @@ def plot_long_profiles(G, outlet=0):
 
 def main():
     parser = argparse.ArgumentParser(
-        description="Despike, smooth, and coarsen a v.fluvial.network JSON "
+        description="Despike, smooth, and coarsen a v.stream.network JSON "
                     "river network, then re-export it as JSON."
     )
-    parser.add_argument("input", help="input JSON from v.fluvial.network json=")
+    parser.add_argument("input", help="input JSON from v.stream.network json=")
     parser.add_argument("output", help="output (cleaned, coarsened) JSON")
     parser.add_argument("--outlet", type=int, default=0,
                         help="outlet node id (default: 0)")

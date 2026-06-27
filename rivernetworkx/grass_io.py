@@ -4,7 +4,7 @@
 #
 # AUTHOR(S):    Andrew Wickert
 #
-# PURPOSE:      Read a GRASS stream-network vector (as linked by v.fluvial.network)
+# PURPOSE:      Read a GRASS stream-network vector (as linked by v.stream.network)
 #               and the rasters sampled along it into rivernetworkx edge records,
 #               then into a NetworkX graph.
 #
@@ -118,13 +118,13 @@ def _read_topology_table(streams):
     import pandas as pd
     from grass.script import vector_db_select
     # !!!! GENERALIZE COLUMN NAME: 'tostream' is hardcoded here (and in
-    # v.fluvial.network's tostream_cat_column option). Plumb the chosen column
+    # v.stream.network's tostream_cat_column option). Plumb the chosen column
     # name through instead of assuming the default. !!!!
     sel = vector_db_select(streams)
     df = pd.DataFrame(data=sel['values'].values(), columns=sel['columns'])
     if 'tostream' not in df.columns:
         from grass.script import fatal
-        fatal("Column 'tostream' not found in <%s>. Run v.fluvial.network first."
+        fatal("Column 'tostream' not found in <%s>. Run v.stream.network first."
               % streams)
     cats = [int(c) for c in df['cat']]
     tostream = {int(c): int(t) for c, t in zip(df['cat'], df['tostream'])}
@@ -206,7 +206,7 @@ def _read_geometry_all(streams):
     Like _read_geometry but discovers the cats itself (one pass over the lines)
     instead of being handed a cat list, so callers that do not have / do not want
     the topology table (e.g. the channel-head detector reading a raw
-    r.stream.extract network) need not run v.fluvial.network first. Consecutive
+    r.stream.extract network) need not run v.stream.network first. Consecutive
     coincident vertices are dropped (see _read_geometry).
     """
     from grass.pygrass.vector import VectorTopo
@@ -317,7 +317,7 @@ def _read_records(geometry, tostream, elevation=None, accumulation=None,
 def read_stream_vector(streams, elevation=None, accumulation=None, slope=None,
                        accum_mult=1.0, assume_complete=False):
     """
-    Read a v.fluvial.network-linked vector (and any rasters) into edge records.
+    Read a v.stream.network-linked vector (and any rasters) into edge records.
     Requires a live GRASS session.
 
     ``assume_complete``: when True, the caller asserts the region contains the
@@ -340,7 +340,7 @@ def read_stream_segments(streams, elevation=None, accumulation=None, slope=None,
 
     Like read_stream_vector but reads geometry straight from the lines and does
     not need a ``tostream`` column, so a raw r.stream.extract network can be used
-    directly -- no v.fluvial.network step (and no O(N^2) linking) first. Each
+    directly -- no v.stream.network step (and no O(N^2) linking) first. Each
     record carries ``tostream = OFFMAP`` (topology is absent); this is what the
     slope--area / fluvial-channel-head analysis needs, which is per-segment and
     uses flow accumulation rather than the network graph.

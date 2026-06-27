@@ -2,7 +2,7 @@
 GRASS-inclusive tests for v.fluvial.profiler (rebuilt on rivernetworkx).
 
 Like the rivernetworkx GRASS suite, these need a live GRASS session and run
-locally (not in CI). They require v.fluvial.network AND v.fluvial.profiler on the
+locally (not in CI). They require v.stream.network AND v.fluvial.profiler on the
 GRASS addon path, and rivernetworkx importable. Run with, e.g.:
 
     MPLBACKEND=Agg PYTHONPATH=. GRASS_ADDON_BASE=/tmp/rnx-addon \
@@ -19,7 +19,7 @@ from grass.gunittest.main import test
 
 
 class TestProfiler(TestCase):
-    """Full path: DEM -> streams -> v.fluvial.network -> v.fluvial.profiler."""
+    """Full path: DEM -> streams -> v.stream.network -> v.fluvial.profiler."""
 
     @classmethod
     def setUpClass(cls):
@@ -33,7 +33,7 @@ class TestProfiler(TestCase):
         cls.runModule('r.stream.extract', elevation='dem', accumulation='accum',
                       stream_vector='streams', direction='draindir',
                       threshold=100, d8cut=0, overwrite=True)
-        cls.runModule('v.fluvial.network', map='streams')
+        cls.runModule('v.stream.network', map='streams')
 
     @classmethod
     def tearDownClass(cls):

@@ -133,7 +133,7 @@ def main():
 
     # Read the over-extracted network with no topology requirement: the
     # slope-area break and the area-crossing placement are both per-segment and
-    # use flow accumulation, so v.fluvial.network linking is not needed.
+    # use flow accumulation, so v.stream.network linking is not needed.
     gscript.message("Reading network and sampling elevation/accumulation.")
     records = rnx.read_stream_segments(streams, elevation=elevation,
                                        accumulation=accumulation,

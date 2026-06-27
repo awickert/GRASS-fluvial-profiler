@@ -3,7 +3,7 @@ GRASS-inclusive tests for r.fluvial.hollow.
 
 Need a live GRASS session; run locally (not in CI). Require r.fluvial.hollow on
 the GRASS addon path and rivernetworkx importable. Note this module does NOT
-need v.fluvial.network first (it reads the raw r.stream.extract network without
+need v.stream.network first (it reads the raw r.stream.extract network without
 topology). Run with, e.g.:
 
     MPLBACKEND=Agg PYTHONPATH=. GRASS_ADDON_BASE=/tmp/rnx-addon \
@@ -17,7 +17,7 @@ from grass.gunittest.main import test
 
 
 class TestFluvialHollow(TestCase):
-    """DEM -> r.watershed -> r.stream.extract -> r.fluvial.hollow (no v.fluvial.network)."""
+    """DEM -> r.watershed -> r.stream.extract -> r.fluvial.hollow (no v.stream.network)."""
 
     @classmethod
     def setUpClass(cls):
@@ -33,7 +33,7 @@ class TestFluvialHollow(TestCase):
         cls.runModule('r.stream.extract', elevation='dem', accumulation='accum',
                       stream_vector='streams', direction='draindir',
                       threshold=100, d8cut=0, overwrite=True)
-        # deliberately NO v.fluvial.network: this module needs no topology
+        # deliberately NO v.stream.network: this module needs no topology
 
     @classmethod
     def tearDownClass(cls):

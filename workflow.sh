@@ -1,6 +1,6 @@
 # Required add-ons
 #   r.stream.extract (now mainstream?)
-#   v.fluvial.network
+#   v.stream.network
 #   v.fluvial.profiler
 
 
@@ -57,7 +57,7 @@ r.mapcalc "$nullmask = $DEM * 0 + 1" --o
 r.mapcalc "$accum = $accum * $nullmask" --o
 r.stream.extract elevation=$DEM accumulation=$accum threshold=$Athresh_km2 \
                  stream_vector=$streams d8cut=0 memory=$memory_Mb --o
-v.fluvial.network map=$streams
+v.stream.network map=$streams
 
 # This gives different slopes and drainage areas than expected -- perhaps SFD needed
 
