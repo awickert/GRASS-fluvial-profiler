@@ -12,25 +12,55 @@ DrEICH head) — see *Relation to field channel heads* below.
 References: Montgomery & Foufoula-Georgiou (1993); Tarboton et al. (1991/92);
 Stock & Dietrich (2003).
 
-## Method
-
-1. **Global slope–area, on *all cells*** (not an extracted network — see finding
-   §1): per-cell slope (`r.slope.aspect` gradient) paired with flow accumulation
-   over every cell, binned in log–log.
-2. **Fit a constrained broken-stick to the binned medians** (`fit_sa_break`): a
-   flat hillslope limb joined at a knot `log A*` to a power-law fluvial limb.
-   `A*` is the transition drainage area.
-3. **Validate** the rollover is real (§2) and **bracket** the extraction
-   threshold below `A*` (§3); build a dense network once that over-shoots upslope
-   past the hollows.
-4. **Place transitions** where drainage area first crosses the (local) `A*`
-   along the network (`colluvial_fluvial_transition`) — topology-free, since
-   accumulation already integrates upstream area.
+## Algorithm
 
 The analysis lives in `rivernetworkx` (`fit_sa_break`,
 `colluvial_fluvial_transition`, `read_stream_segments`, plus the O(N)
 endpoint-hash topology that replaces `v.stream.network`'s O(N²) linking — issue
-#13); the module is a thin GRASS wrapper.
+#13); the GRASS module is a thin wrapper. Inputs: DEM, flow accumulation
+(+ drainage direction). Spine: **global → bracket → build → detect**, with a
+validity gate that refuses to invent a hollow where there is no rollover.
+
+**Phase A — global: find the transition scale, validate, bracket**
+*(validated: MBR R ≈ 0.95, Trempealeau R ≈ 0.49)*
+1. Per-cell slope over **all cells** (`r.slope.aspect`, gradient) — not an
+   extracted network (§1).
+2. Pair (accumulation, slope) for every cell → log–log; drop flat-cell
+   artifacts (S below a small floor) and the high-A trunk tail.
+3. Bin by log A → **median log S per bin** (require a minimum count per bin).
+4. Fit the constrained broken-stick to the **binned medians** → knot `log A*`,
+   `θ`, hillslope level; compute **R** (variance reduction vs. a single line)
+   and **edge-margin**.
+5. **Validity gate:** accept iff `R ≳ 0.3` **and** the knot is interior
+   (`edge ≳ 0.1`) **and** `θ ∈ ~[0.2, 1]`. Otherwise there is no detectable
+   fluvial transition — **stop and report that**, rather than fabricate a hollow.
+6. **Bracket:** set the extraction threshold `T` a conservative factor *below*
+   `A*`, so the built network over-shoots upslope past the hollows. *(Open: the
+   exact factor; err small.)*
+
+**Phase B — build once**
+7. `r.stream.extract` at threshold `T` → dense, over-extracted network.
+8. `read_stream_segments` (topology-free) + sample elevation/accumulation;
+   build O(N) endpoint-hash flowlines (source → downstream).
+
+**Phase C — place the transitions**
+- **v1 (validated, shippable): global `A*` everywhere** — mark each point where
+  drainage area first crosses `A*` along the network
+  (`colluvial_fluvial_transition`); dedup coincident points.
+- **v2 (local `A*`, *not yet validated*):** per-flowline (or windowed) binned
+  broken-stick → a *local* `A*`, same validity gate, placed per flowline.
+  Caveat: per-flowline slope is noise-limited (§4) and windowed `A*` was
+  salt-and-pepper at uniform MBR, so v2 earns its keep only on heterogeneous
+  terrain; uniform basins fall back to the global `A*`.
+
+**Phase D — output**
+9. Channel-transition points (vector) carrying `A*`, source segment, and an
+   R/confidence value; optionally the `A*`-thresholded channel network (sources
+   pinned at the transitions, ready for `r.stream.distance`).
+
+The honest fault line is Phase C: ship **v1** (global `A*`) now, since it is
+validated; treat **v2** (local `A*`) as the refinement to prove out on
+heterogeneous terrain.
 
 ## Validation (Mid Bailey Run, OH — 1 m 3DEP; Clubb et al. 2014's 53 mapped heads)
 
