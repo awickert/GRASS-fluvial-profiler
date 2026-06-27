@@ -24,7 +24,7 @@ stream network extracted by
 | --- | --- |
 | **`v.stream.network`** | Adds topology columns to a stream-network vector: upstream/downstream node coordinates and `tostream`, the category of the next segment downstream (`0` if the stream leaves the map). Optionally (`json=`) exports the linked network as a [NetworkX](https://networkx.org/) node-link JSON graph, sampling elevation and flow accumulation along each segment and computing cumulative distance upstream of the outlet. |
 | **`v.fluvial.profiler`** | Builds and plots river long profiles and slope&ndash;accumulation (e.g., slope&ndash;area) diagrams for a single downstream-directed channel. |
-| **`r.fluvial.hollow`** | Maps the **colluvial-to-fluvial transition** (the downslope limit of colluvial hollows, where channels become fluvial) from the slope&ndash;area break. Reads a deliberately over-extracted network, fits the break drainage area `A*`, and outputs transition points. This is a reproducible *process* boundary &mdash; the upstream limit of the fluvial domain &mdash; distinct from a morphological field channel head, which lies upslope within the hollow. |
+| **`r.fluvial.channelheads`** | Maps the **colluvial-to-fluvial transition** (the downslope limit of colluvial hollows, where channels become fluvial) from the slope&ndash;area break. Reads a deliberately over-extracted network, fits the break drainage area `A*`, and outputs transition points. This is a reproducible *process* boundary &mdash; the upstream limit of the fluvial domain &mdash; distinct from a morphological field channel head, which lies upslope within the hollow. |
 
 The graph construction, raster sampling, and JSON I/O shared by these modules
 live in the [`rivernetworkx`](rivernetworkx/) Python package (pure NetworkX, no
@@ -109,7 +109,7 @@ predictor.
 
 The channel network passed as `stream_rast` defines where hillslopes are taken to
 end, so that choice propagates into every derived length. Thresholding
-accumulation at `r.fluvial.hollow`'s colluvial-to-fluvial transition area `A*`
+accumulation at `r.fluvial.channelheads`'s colluvial-to-fluvial transition area `A*`
 (`accumulation >= A*`) gives a process-based channel definition rather than an
 arbitrary extraction threshold.
 

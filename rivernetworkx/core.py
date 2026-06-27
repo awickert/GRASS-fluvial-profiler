@@ -579,7 +579,7 @@ def colluvial_fluvial_transition(records, A_star):
     (downstream of their transition) yield none.
 
     This is a PROCESS boundary, not a morphological field channel head -- the
-    latter lies upslope, within the colluvial hollow (see r.fluvial.hollow).
+    latter lies upslope, within the colluvial hollow (see r.fluvial.channelheads).
     """
     heads = []
     for rec in records:

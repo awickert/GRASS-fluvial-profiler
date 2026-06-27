@@ -1,6 +1,6 @@
-# r.fluvial.hollow — design and validation findings
+# r.fluvial.channelheads — design and validation findings
 
-`r.fluvial.hollow` maps the **colluvial-to-fluvial transition**: the downslope
+`r.fluvial.channelheads` maps the **colluvial-to-fluvial transition**: the downslope
 limit of colluvial hollows, where channels become fluvial. This is a *process*
 boundary (where fluvial incision begins to dominate hillslope/colluvial
 transport), found from the **slope–area break** (the rollover from a flat

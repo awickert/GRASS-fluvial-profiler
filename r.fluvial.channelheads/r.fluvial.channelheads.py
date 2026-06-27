@@ -1,7 +1,7 @@
 #!/usr/bin/env python
 ############################################################################
 #
-# MODULE:       r.fluvial.hollow
+# MODULE:       r.fluvial.channelheads
 #
 # AUTHOR(S):    Andrew Wickert
 #
@@ -128,7 +128,7 @@ def main():
     try:
         import rivernetworkx as rnx
     except ImportError:
-        gscript.fatal("r.fluvial.hollow requires the 'rivernetworkx' package "
+        gscript.fatal("r.fluvial.channelheads requires the 'rivernetworkx' package "
                       "(pip install -e . in your GRASS Python environment).")
 
     # Read the over-extracted network with no topology requirement: the

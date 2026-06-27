@@ -1,4 +1,4 @@
-# dev/ — diagnostic & prototyping scripts (r.fluvial.hollow R&D)
+# dev/ — diagnostic & prototyping scripts (r.fluvial.channelheads R&D)
 
 Throwaway-quality R&D scripts kept around to **diagnose and reproduce** the
 hollow / colluvial-to-fluvial-transition development. They are *not* part of the
@@ -10,7 +10,7 @@ addon and are *not* portable or run in CI.
 - `/tmp/clubb_channel_heads.xlsx` (Fiona Clubb's 53 Mid Bailey Run heads),
 
 and assume the system-python GRASS setup (see the project memory
-`grass-gunittest-recipe` and `../r.fluvial.hollow/DESIGN.md`). Typical run:
+`grass-gunittest-recipe` and `../r.fluvial.channelheads/DESIGN.md`). Typical run:
 
 ```
 PROJ_DATA=/usr/share/proj PROJ_LIB=/usr/share/proj PYTHONPATH=. \
@@ -62,6 +62,6 @@ rewrite above.
 | `west_east_slope_area_curves.py` | Binned slope–area curves for representative west vs east subwatersheds. |
 | `slope_floor_sweep.py` | West/east pass counts vs the slope floor — disproves the slope-floor hypothesis. |
 
-These produced the numbers and figures recorded in `../r.fluvial.hollow/DESIGN.md`.
+These produced the numbers and figures recorded in `../r.fluvial.channelheads/DESIGN.md`.
 They duplicate boilerplate (region setup, the `fit`/broken-stick helper) on
 purpose — each is self-contained for quick edit-and-rerun diagnosis.

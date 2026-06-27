@@ -1,6 +1,6 @@
 <h2>DESCRIPTION</h2>
 
-<em>r.fluvial.hollow</em> maps the <b>colluvial-to-fluvial transition</b> &mdash;
+<em>r.fluvial.channelheads</em> maps the <b>colluvial-to-fluvial transition</b> &mdash;
 the downslope limit of <b>colluvial hollows</b> (the unchanneled,
 colluvium-mantled zero-order valleys at the head of the drainage network)
 &mdash; from the <b>slope&ndash;area break</b>. In log&ndash;log
@@ -87,7 +87,7 @@ r.stream.extract elevation=dem accumulation=accum threshold=100 \
     stream_vector=streams_dense stream_raster=streams_rast
 
 # Colluvial-to-fluvial transition from the slope-area break
-r.fluvial.hollow elevation=dem accumulation=accum streams=streams_dense \
+r.fluvial.channelheads elevation=dem accumulation=accum streams=streams_dense \
     output=hollow_transition window=30 min_slope=0.0001
 </pre></div>
 

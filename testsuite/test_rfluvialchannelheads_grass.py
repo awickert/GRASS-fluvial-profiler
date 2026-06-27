@@ -1,14 +1,14 @@
 """
-GRASS-inclusive tests for r.fluvial.hollow.
+GRASS-inclusive tests for r.fluvial.channelheads.
 
-Need a live GRASS session; run locally (not in CI). Require r.fluvial.hollow on
+Need a live GRASS session; run locally (not in CI). Require r.fluvial.channelheads on
 the GRASS addon path and rivernetworkx importable. Note this module does NOT
 need v.stream.network first (it reads the raw r.stream.extract network without
 topology). Run with, e.g.:
 
     MPLBACKEND=Agg PYTHONPATH=. GRASS_ADDON_BASE=/tmp/rnx-addon \
         grass --tmp-location XY --exec python \
-        testsuite/test_rfluvialhollow_grass.py
+        testsuite/test_rfluvialchannelheads_grass.py
 """
 
 from grass import script as gscript
@@ -17,7 +17,7 @@ from grass.gunittest.main import test
 
 
 class TestFluvialHollow(TestCase):
-    """DEM -> r.watershed -> r.stream.extract -> r.fluvial.hollow (no v.stream.network)."""
+    """DEM -> r.watershed -> r.stream.extract -> r.fluvial.channelheads (no v.stream.network)."""
 
     @classmethod
     def setUpClass(cls):
@@ -46,7 +46,7 @@ class TestFluvialHollow(TestCase):
     def test_finds_transition_without_topology(self):
         # -c: the synthetic catchment drains off-map, so treat negative
         # accumulation at hollow heads as a boundary artifact. window=0 = none.
-        self.assertModule('r.fluvial.hollow', flags='c', elevation='dem',
+        self.assertModule('r.fluvial.channelheads', flags='c', elevation='dem',
                           accumulation='accum', streams='streams',
                           output='transition', window=0, min_slope=1e-9,
                           overwrite=True)
@@ -60,7 +60,7 @@ class TestFluvialHollow(TestCase):
     def test_offmap_without_flag_fails(self):
         # without -c, off-map inflow (negative accumulation at heads) must error
         # rather than build a misleading result (issue #9).
-        self.assertModuleFail('r.fluvial.hollow', elevation='dem',
+        self.assertModuleFail('r.fluvial.channelheads', elevation='dem',
                               accumulation='accum', streams='streams',
                               output='transition_bad', window=0, min_slope=1e-9)
 

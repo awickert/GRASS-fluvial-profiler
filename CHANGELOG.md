@@ -8,7 +8,7 @@ and this project aims to follow [Semantic Versioning](https://semver.org/).
 ## [Unreleased]
 
 ### Added
-- **`r.fluvial.hollow`**: a new module that maps the **colluvial-to-fluvial
+- **`r.fluvial.channelheads`**: a new module that maps the **colluvial-to-fluvial
   transition** (the downslope limit of colluvial hollows) from the
   slope&ndash;area break. It reads a deliberately over-extracted
   `r.stream.extract` network, fits a constrained broken-stick to the
@@ -30,7 +30,7 @@ and this project aims to follow [Semantic Versioning](https://semver.org/).
 ### Changed
 - **`v.stream.profiler` renamed to `v.fluvial.profiler`.** The geomorphic-analysis
   modules form a `fluvial` family on the shared `rivernetworkx` core
-  (`v.fluvial.profiler` plus the new `r.fluvial.hollow`), kept distinct from
+  (`v.fluvial.profiler` plus the new `r.fluvial.channelheads`), kept distinct from
   **`v.stream.network`**, which retains its name as the network-topology builder
   (stream-network plumbing that composes with the `r.stream.*` ecosystem). The
   `r.`/`v.` prefixes follow data type. Breaking: the `v.stream.profiler` name no
