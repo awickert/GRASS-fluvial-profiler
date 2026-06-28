@@ -9,12 +9,12 @@ and this project aims to follow [Semantic Versioning](https://semver.org/).
 
 ### Added
 - **`r.fluvial.channelheads` `method=dreich` gains network outputs**: alongside
-  the channel-head points (`output`, now optional), emit the **downstream fluvial
+  the channel-head points (`points`, now optional), emit the **downstream fluvial
   network** (channel heads and everything below) as vector lines (`network=`) in
   **v.stream.network format** &mdash; each link carries `x1,y1,x2,y2` endpoints
   and a `tostream` cat (0 = exits the map), a ready-to-use converging directed
   graph with no separate `v.stream.network` run &mdash; and/or as a `CELL` raster
-  stream map (`network_raster=`, cell value = link cat, NULL off-network) for
+  stream map (`raster_network=`, cell value = link cat, NULL off-network) for
   downstream GRASS modules. At least one output is required. Backed by
   `rivernetworkx.channel_network_segments`, which traces the D8 network from the
   heads and splits it into links at confluences.

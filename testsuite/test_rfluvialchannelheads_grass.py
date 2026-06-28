@@ -48,7 +48,7 @@ class TestFluvialHollow(TestCase):
         # accumulation at hollow heads as a boundary artifact. window=0 = none.
         self.assertModule('r.fluvial.channelheads', flags='c', elevation='dem',
                           accumulation='accum', streams='streams',
-                          output='transition', window=0, min_slope=1e-9,
+                          points='transition', window=0, min_slope=1e-9,
                           overwrite=True)
         self.assertVectorExists('transition')
         topo = gscript.vector_info_topo('transition')
@@ -62,7 +62,7 @@ class TestFluvialHollow(TestCase):
         # rather than build a misleading result (issue #9).
         self.assertModuleFail('r.fluvial.channelheads', elevation='dem',
                               accumulation='accum', streams='streams',
-                              output='transition_bad', window=0, min_slope=1e-9)
+                              points='transition_bad', window=0, min_slope=1e-9)
 
 
 class TestChannelHeadsDrEICH(TestCase):
@@ -87,7 +87,7 @@ class TestChannelHeadsDrEICH(TestCase):
 
     def test_finds_dreich_heads(self):
         self.assertModule('r.fluvial.channelheads', method='dreich', elevation='dem',
-                          output='heads', threshold=15, window_radius=30,
+                          points='heads', threshold=15, window_radius=30,
                           tan_curv_threshold=0.005, min_segment_length=5,
                           overwrite=True)
         self.assertVectorExists('heads')
@@ -97,7 +97,7 @@ class TestChannelHeadsDrEICH(TestCase):
     def test_emits_fluvial_network(self):
         # also request the downstream fluvial network as a linked directed graph.
         self.assertModule('r.fluvial.channelheads', method='dreich', elevation='dem',
-                          output='heads', network='net', threshold=15,
+                          points='heads', network='net', threshold=15,
                           window_radius=30, tan_curv_threshold=0.005,
                           min_segment_length=5, overwrite=True)
         self.assertVectorExists('net')
@@ -122,7 +122,7 @@ class TestChannelHeadsDrEICH(TestCase):
         self.runModule('r.watershed', flags='s', elevation='dem', drainage='dir',
                        overwrite=True)
         self.assertModule('r.fluvial.channelheads', method='dreich', elevation='dem',
-                          direction='dir', network='net', network_raster='netr',
+                          direction='dir', network='net', raster_network='netr',
                           threshold=15, window_radius=30, tan_curv_threshold=0.005,
                           min_segment_length=5, overwrite=True)
         # raster stream network is CELL, with link cats matching the vector.
