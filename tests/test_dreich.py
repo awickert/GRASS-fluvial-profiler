@@ -192,5 +192,74 @@ def test_return_flowinfo_round_trips_through_network():
         assert h in starts
 
 
+# ----------------------------------------------------- external routing input
+# inverse of the r.watershed encoding used by build_flowinfo_from_directions
+_CODE = {(-1, 1): 1, (-1, 0): 2, (-1, -1): 3, (0, -1): 4,
+         (1, -1): 5, (1, 0): 6, (1, 1): 7, (0, 1): 8}
+
+
+def _encode_directions(fi):
+    """Encode a FlowInfo's receivers as an r.watershed drainage-direction
+    raster (0 = no flow / baselevel)."""
+    nr, nc = fi['nr'], fi['nc']
+    recv, row, col = fi['recv'], fi['row_of'], fi['col_of']
+    dirgrid = np.zeros((nr, nc), dtype=np.int32)
+    for n in range(fi['N']):
+        r = int(recv[n])
+        if r == n:
+            continue
+        dirgrid[row[n], col[n]] = _CODE[(int(row[r] - row[n]), int(col[r] - col[n]))]
+    return dirgrid
+
+
+def test_build_flowinfo_from_directions_round_trips():
+    # a tilted plane with an incised valley -> a real D8 network
+    nr, nc = 40, 40
+    z = (np.arange(nr)[:, None] * -0.5 + 100.0) * np.ones((1, nc))
+    z = (z - np.exp(-((np.arange(nc)[None, :] - nc / 2) ** 2) / 8.0) * 3.0).astype(np.float32)
+    fi = D.build_flowinfo(z, nodata=-9999.0, cellsize=1.0)
+    dirgrid = _encode_directions(fi)
+    fi2 = D.build_flowinfo_from_directions(dirgrid, z, nodata=-9999.0, cellsize=1.0)
+    # same node ordering (same valid mask) -> receivers and flow-length codes match
+    assert np.array_equal(fi2['recv'], fi['recv'])
+    assert np.array_equal(fi2['flc'], fi['flc'])
+
+
+def test_extract_with_direction_matches_internal_routing():
+    nr, nc = 60, 60
+    z = (np.arange(nr)[:, None] * -0.5 + 100.0) * np.ones((1, nc))
+    valley = np.exp(-((np.arange(nc)[None, :] - nc / 2) ** 2) / 8.0) * 3.0
+    z = (z - valley).astype(np.float32)
+    # routing the module would compute internally (on the filled surface)
+    filled = D.fill(z, -9999.0, 0.0001, 1.0)
+    dirgrid = _encode_directions(D.build_flowinfo(filled, -9999.0, 1.0))
+    internal = D.extract_channel_heads(z, nodata=-9999.0, cellsize=1.0,
+                                       threshold=20, min_segment_length=5)
+    injected = D.extract_channel_heads(z, nodata=-9999.0, cellsize=1.0,
+                                       threshold=20, min_segment_length=5,
+                                       direction=dirgrid)
+    # feeding back the internal routing as an external raster reproduces the heads
+    assert injected == internal
+
+
+def test_direction_nan_and_offrange_become_outlets():
+    # NaN / out-of-range direction codes must not crash and route nowhere
+    z = np.array([[3.0, 2.0, 1.0],
+                  [3.0, 2.0, 1.0]], dtype=np.float32)
+    direction = np.array([[8, 8, np.nan],                  # (0,2) NaN
+                          [8, 99, 0]], dtype=float)        # (1,1) out-of-range, (1,2) 0
+    fi = D.build_flowinfo_from_directions(direction, z, nodata=-9999.0, cellsize=1.0)
+    node = fi['NodeIndex']
+    recv = fi['recv']
+    # 8 = east: (0,0)->(0,1)->(0,2), and (1,0)->(1,1)
+    assert int(recv[node[0, 0]]) == int(node[0, 1])
+    assert int(recv[node[0, 1]]) == int(node[0, 2])
+    assert int(recv[node[1, 0]]) == int(node[1, 1])
+    # NaN, out-of-range (99) and 0 all mean "no flow" -> base level (self-receiver)
+    assert int(recv[node[0, 2]]) == int(node[0, 2])
+    assert int(recv[node[1, 1]]) == int(node[1, 1])
+    assert int(recv[node[1, 2]]) == int(node[1, 2])
+
+
 if __name__ == '__main__':
     raise SystemExit(pytest.main([__file__, '-v']))
