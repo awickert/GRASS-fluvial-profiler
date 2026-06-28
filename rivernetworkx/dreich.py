@@ -522,7 +522,8 @@ def channel_heads_from_valleys(fi, dem, valley, min_segment_length=10,
 def extract_channel_heads(dem, nodata=-9999.0, cellsize=1.0, *, fill_dem=True,
                           threshold=100, min_slope=0.0001, A_0=1000.0, m_over_n=0.525,
                           n_connecting_nodes=10, min_segment_length=10,
-                          window_radius=7, tan_curv_threshold=0.1, return_filled=False):
+                          window_radius=7, tan_curv_threshold=0.1, return_filled=False,
+                          filled=None, curvature=None):
     """Extract DrEICH channel heads from a DEM array.
 
     Parameters
@@ -545,8 +546,15 @@ def extract_channel_heads(dem, nodata=-9999.0, cellsize=1.0, *, fill_dem=True,
     heads : list of (row, col)
         Channel-head cells. If ``return_filled``, returns ``(heads, filled_dem)``.
     """
-    filled = fill(dem, nodata, min_slope, cellsize) if fill_dem else dem.astype(np.float32)
-    tcurv = tangential_curvature(filled, nodata, cellsize, window_radius)
+    # ``filled`` and ``curvature`` may be injected to swap in alternative
+    # components (e.g. a GRASS r.fill.dir surface or r.param.scale curvature) for
+    # comparison against the faithful LSDTopoTools pipeline.
+    if filled is None:
+        filled = fill(dem, nodata, min_slope, cellsize) if fill_dem else dem.astype(np.float32)
+    else:
+        filled = filled.astype(np.float32)
+    tcurv = curvature if curvature is not None else \
+        tangential_curvature(filled, nodata, cellsize, window_radius)
     fi = build_flowinfo(filled, nodata, cellsize)
     contributing_area(fi)
     sources = get_sources(fi, threshold)
