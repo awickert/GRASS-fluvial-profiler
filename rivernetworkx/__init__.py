@@ -49,6 +49,7 @@ from .grass_io import (  # noqa: F401
 # curvature step. Used by r.fluvial.channelheads method=dreich.
 from .dreich import (  # noqa: F401
     extract_channel_heads,
+    channel_network_segments,
     fill as fill_dem,
     tangential_curvature,
 )

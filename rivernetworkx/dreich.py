@@ -523,7 +523,7 @@ def extract_channel_heads(dem, nodata=-9999.0, cellsize=1.0, *, fill_dem=True,
                           threshold=100, min_slope=0.0001, A_0=1000.0, m_over_n=0.525,
                           n_connecting_nodes=10, min_segment_length=10,
                           window_radius=7, tan_curv_threshold=0.1, return_filled=False,
-                          filled=None, curvature=None):
+                          return_flowinfo=False, filled=None, curvature=None):
     """Extract DrEICH channel heads from a DEM array.
 
     Parameters
@@ -544,7 +544,10 @@ def extract_channel_heads(dem, nodata=-9999.0, cellsize=1.0, *, fill_dem=True,
     Returns
     -------
     heads : list of (row, col)
-        Channel-head cells. If ``return_filled``, returns ``(heads, filled_dem)``.
+        Channel-head cells. If ``return_filled``, the filled DEM is appended; if
+        ``return_flowinfo``, the FlowInfo dict (D8 routing, for tracing the
+        channel network downstream of the heads) is appended. The return is a
+        tuple in the order ``(heads[, filled][, flowinfo])`` when either is set.
     """
     # ``filled`` and ``curvature`` may be injected to swap in alternative
     # components (e.g. a GRASS r.fill.dir surface or r.param.scale curvature) for
@@ -564,4 +567,98 @@ def extract_channel_heads(dem, nodata=-9999.0, cellsize=1.0, *, fill_dem=True,
     distance_from_outlet(fi)
     _, final = channel_heads_from_valleys(fi, filled, valley, min_segment_length, A_0, m_over_n)
     heads = [(int(fi['row_of'][n]), int(fi['col_of'][n])) for n in final]
-    return (heads, filled) if return_filled else heads
+    if not (return_filled or return_flowinfo):
+        return heads
+    out = [heads]
+    if return_filled:
+        out.append(filled)
+    if return_flowinfo:
+        out.append(fi)
+    return tuple(out)
+
+
+def channel_network_segments(fi, heads):
+    """Trace the D8 channel network downstream of the channel ``heads`` and split
+    it into stream links at confluences -- the v.stream.network directed-graph
+    representation.
+
+    The network is every cell on a flow path from a channel head down to its
+    outlet (region edge or internal pit). It is cut into links at junctions:
+    a link runs from a source or a confluence down to the next confluence or the
+    outlet, with the confluence cell shared between the incoming links and the
+    single outgoing link. Each link points to exactly one downstream link
+    (``tostream``), so the network is a converging tree (``OFFMAP = 0`` at the
+    outlet), matching what r.stream.extract + v.stream.network produce.
+
+    Parameters
+    ----------
+    fi : dict
+        FlowInfo from :func:`build_flowinfo` (uses ``recv``, ``NodeIndex``,
+        ``row_of``, ``col_of``, ``N``, ``nr``, ``nc``).
+    heads : list of (row, col)
+        Channel-head cells (e.g. from :func:`extract_channel_heads`).
+
+    Returns
+    -------
+    segments : list of dict
+        One per link, ordered and ``cat``-numbered (1-based) by the (row, col)
+        of its upstream end. Each dict has ``cat`` (int), ``cells`` (list of
+        (row, col) from upstream junction to downstream junction, inclusive),
+        and ``tostream`` (cat of the downstream link, or 0 at the outlet).
+    """
+    recv = fi['recv']; NodeIndex = fi['NodeIndex']
+    row_of = fi['row_of']; col_of = fi['col_of']; N = fi['N']
+
+    # 1. mark every node on a flow path downstream of a head. Stop as soon as a
+    #    path merges into an already-marked one (the rest is already on).
+    on = np.zeros(N, dtype=bool)
+    for (r, c) in heads:
+        node = int(NodeIndex[r, c])
+        if node < 0:
+            continue
+        while not on[node]:
+            on[node] = True
+            nxt = int(recv[node])
+            if nxt == node:                     # baselevel / internal pit
+                break
+            node = nxt
+    chan = np.where(on)[0]
+
+    # 2. channel in-degree: how many channel nodes drain straight into each node.
+    rv = recv[chan]
+    feeds = on[rv] & (rv != chan)               # exclude self-loops and off-network
+    indeg = np.zeros(N, dtype=np.int64)
+    np.add.at(indeg, rv[feeds], 1)
+
+    def is_outlet(nd):
+        nxt = int(recv[nd])
+        return nxt == nd or not on[nxt]
+
+    # 3. links begin at sources (indeg 0) and confluences (indeg >= 2).
+    starts = [int(nd) for nd in chan if indeg[nd] == 0 or indeg[nd] >= 2]
+
+    # 4. walk each start downstream to the next confluence or the outlet.
+    raw = []
+    for s in starts:
+        cells = [s]; nd = s
+        while True:
+            if is_outlet(nd):
+                end = nd; break
+            nxt = int(recv[nd])
+            cells.append(nxt); nd = nxt
+            if indeg[nd] >= 2:                   # confluence: link ends (shared cell)
+                end = nd; break
+        if len(cells) >= 2:                      # drop a degenerate 1-cell outlet head
+            raw.append((s, end, cells))
+
+    # 5. cat-number by upstream (row, col), then resolve tostream from the end
+    #    node: the link that *starts* at this link's end confluence, else 0.
+    raw.sort(key=lambda t: (int(row_of[t[0]]), int(col_of[t[0]])))
+    seg_of_start = {s: i + 1 for i, (s, _e, _c) in enumerate(raw)}
+    segments = []
+    for i, (_s, end, cells) in enumerate(raw):
+        segments.append(dict(
+            cat=i + 1,
+            cells=[(int(row_of[n]), int(col_of[n])) for n in cells],
+            tostream=seg_of_start.get(end, 0)))
+    return segments
