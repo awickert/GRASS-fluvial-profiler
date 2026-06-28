@@ -47,8 +47,8 @@
 #%  key: method
 #%  type: string
 #%  label: Channel-head method
-#%  description: lsdtt = DrEICH chi-z morphological channel heads (Clubb et al. 2014); slope_area = colluvial-to-fluvial (hollow) transition from the slope-area break
-#%  options: slope_area,lsdtt
+#%  description: dreich = DrEICH chi-z morphological channel heads (Clubb et al. 2014); slope_area = colluvial-to-fluvial (hollow) transition from the slope-area break
+#%  options: slope_area,dreich
 #%  answer: slope_area
 #%  required: yes
 #%end
@@ -74,13 +74,13 @@
 
 #%option G_OPT_V_OUTPUT
 #%  key: output
-#%  label: Output channel-head points (lsdtt) or colluvial-to-fluvial transition points (slope_area)
+#%  label: Output channel-head points (dreich) or colluvial-to-fluvial transition points (slope_area)
 #%  required: yes
 #%end
 
 #%option G_OPT_V_OUTPUT
 #%  key: network
-#%  label: Output fluvial network (vector lines, channel heads and everything downstream) [method=lsdtt]
+#%  label: Output fluvial network (vector lines, channel heads and everything downstream) [method=dreich]
 #%  description: Linked stream network in v.stream.network format (cat, x1, y1, x2, y2, tostream; tostream=0 = exits map), so it is a ready-to-use directed graph
 #%  required: no
 #%end
@@ -127,7 +127,7 @@
 #%option
 #%  key: threshold
 #%  type: integer
-#%  label: Source drainage-area threshold, cells [method=lsdtt]
+#%  label: Source drainage-area threshold, cells [method=dreich]
 #%  answer: 100
 #%  required: no
 #%end
@@ -135,7 +135,7 @@
 #%option
 #%  key: a_0
 #%  type: double
-#%  label: Reference drainage area A_0 for chi [method=lsdtt]
+#%  label: Reference drainage area A_0 for chi [method=dreich]
 #%  answer: 1000
 #%  required: no
 #%end
@@ -143,7 +143,7 @@
 #%option
 #%  key: m_over_n
 #%  type: double
-#%  label: Concavity m/n for chi [method=lsdtt]
+#%  label: Concavity m/n for chi [method=dreich]
 #%  answer: 0.525
 #%  required: no
 #%end
@@ -151,7 +151,7 @@
 #%option
 #%  key: n_connecting_nodes
 #%  type: integer
-#%  label: Consecutive high-curvature nodes required to flag a valley [method=lsdtt]
+#%  label: Consecutive high-curvature nodes required to flag a valley [method=dreich]
 #%  answer: 10
 #%  required: no
 #%end
@@ -159,7 +159,7 @@
 #%option
 #%  key: min_segment_length
 #%  type: integer
-#%  label: Minimum chi-z segment length for the channel-head split [method=lsdtt]
+#%  label: Minimum chi-z segment length for the channel-head split [method=dreich]
 #%  answer: 10
 #%  required: no
 #%end
@@ -167,7 +167,7 @@
 #%option
 #%  key: window_radius
 #%  type: double
-#%  label: Polynomial-fit window radius (map units) for tangential curvature [method=lsdtt]
+#%  label: Polynomial-fit window radius (map units) for tangential curvature [method=dreich]
 #%  answer: 7
 #%  required: no
 #%end
@@ -175,7 +175,7 @@
 #%option
 #%  key: tan_curv_threshold
 #%  type: double
-#%  label: Tangential-curvature threshold that marks valley cells [method=lsdtt]
+#%  label: Tangential-curvature threshold that marks valley cells [method=dreich]
 #%  answer: 0.1
 #%  required: no
 #%end
@@ -195,13 +195,13 @@ def main():
     except ImportError:
         gscript.fatal("r.fluvial.channelheads requires the 'rivernetworkx' package "
                       "(pip install -e . in your GRASS Python environment).")
-    if options['method'] == 'lsdtt':
-        _run_lsdtt(options, flags)
+    if options['method'] == 'dreich':
+        _run_dreich(options, flags)
     else:
         _run_slope_area(options, flags)
 
 
-def _run_lsdtt(options, flags):
+def _run_dreich(options, flags):
     """DrEICH chi-z morphological channel heads (Clubb et al., 2014), via the
     faithful LSDTopoTools port in rivernetworkx.dreich. Needs only the DEM; fill,
     flow routing, tangential curvature, valleys and the chi-z split are all
@@ -222,7 +222,7 @@ def _run_lsdtt(options, flags):
     nodata = -9999.0
     z = np.where(np.isfinite(z), z, nodata)
 
-    gscript.message("DrEICH (lsdtt): filling, routing, curvature, valleys, chi-z split.")
+    gscript.message("DrEICH: filling, routing, curvature, valleys, chi-z split.")
     result = dreich.extract_channel_heads(
         z, nodata=nodata, cellsize=cellsize,
         threshold=int(options['threshold']), min_slope=float(options['min_slope']),

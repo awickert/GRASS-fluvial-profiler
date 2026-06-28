@@ -65,8 +65,8 @@ class TestFluvialHollow(TestCase):
                               output='transition_bad', window=0, min_slope=1e-9)
 
 
-class TestChannelHeadsLSDTT(TestCase):
-    """method=lsdtt (DrEICH): a fastscape-evolved landscape -> chi-z channel heads.
+class TestChannelHeadsDrEICH(TestCase):
+    """method=dreich (DrEICH): a fastscape-evolved landscape -> chi-z channel heads.
     Uses r.fluvial.fastscape to build coherent terrain (also a cross-module check)."""
 
     @classmethod
@@ -86,7 +86,7 @@ class TestChannelHeadsLSDTT(TestCase):
         cls.del_temp_region()
 
     def test_finds_dreich_heads(self):
-        self.assertModule('r.fluvial.channelheads', method='lsdtt', elevation='dem',
+        self.assertModule('r.fluvial.channelheads', method='dreich', elevation='dem',
                           output='heads', threshold=15, window_radius=30,
                           tan_curv_threshold=0.005, min_segment_length=5,
                           overwrite=True)
@@ -96,7 +96,7 @@ class TestChannelHeadsLSDTT(TestCase):
 
     def test_emits_fluvial_network(self):
         # also request the downstream fluvial network as a linked directed graph.
-        self.assertModule('r.fluvial.channelheads', method='lsdtt', elevation='dem',
+        self.assertModule('r.fluvial.channelheads', method='dreich', elevation='dem',
                           output='heads', network='net', threshold=15,
                           window_radius=30, tan_curv_threshold=0.005,
                           min_segment_length=5, overwrite=True)

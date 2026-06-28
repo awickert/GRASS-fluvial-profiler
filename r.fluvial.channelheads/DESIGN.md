@@ -1,7 +1,7 @@
 # r.fluvial.channelheads — design and validation findings
 
 > **Scope:** this document covers **`method=slope_area`** (the colluvial-to-fluvial
-> transition). The module also provides **`method=lsdtt`**, a faithful port of the
+> transition). The module also provides **`method=dreich`**, a faithful port of the
 > DrEICH chi–z channel-head algorithm (Clubb et al., 2014); that pipeline lives in
 > `rivernetworkx.dreich` and is documented in the module's HTML manual. DrEICH
 > heads lie *upslope* of the slope–area transition described below.

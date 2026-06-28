@@ -4,7 +4,7 @@
 It offers two <b>method</b>s, which find two distinct (but related) quantities:
 
 <ul>
-  <li><b>method=lsdtt</b> &mdash; <b>DrEICH morphological channel heads</b> (Clubb
+  <li><b>method=dreich</b> &mdash; <b>DrEICH morphological channel heads</b> (Clubb
       et al., 2014), a faithful Python port of the LSDTopoTools chi&ndash;elevation
       algorithm. Channel heads are the cells where the long profile becomes linear
       in the integral coordinate <em>&chi;</em>, downstream of the persistently
@@ -15,7 +15,7 @@ It offers two <b>method</b>s, which find two distinct (but related) quantities:
       <em>downslope</em> of the DrEICH head.</li>
 </ul>
 
-<h3>method=lsdtt (DrEICH channel heads)</h3>
+<h3>method=dreich (DrEICH channel heads)</h3>
 
 On the depression-filled DEM the module: routes D8 flow and accumulates area;
 extracts an over-dense source set at a small area <b>threshold</b>; fits
@@ -122,11 +122,11 @@ inflow.
 
 <div class="code"><pre>
 # DrEICH morphological channel heads (needs only the DEM)
-r.fluvial.channelheads method=lsdtt elevation=dem output=channel_heads \
+r.fluvial.channelheads method=dreich elevation=dem output=channel_heads \
     threshold=100 a_0=1000 m_over_n=0.525 window_radius=7
 
 # ...and also emit the downstream fluvial network as a linked directed graph
-r.fluvial.channelheads method=lsdtt elevation=dem output=channel_heads \
+r.fluvial.channelheads method=dreich elevation=dem output=channel_heads \
     network=channel_network threshold=100 window_radius=7
 # the 'tostream' column links each segment to its downstream segment (0 = exits map)
 v.db.select map=channel_network columns=cat,tostream
