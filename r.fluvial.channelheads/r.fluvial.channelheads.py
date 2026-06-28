@@ -72,16 +72,30 @@
 #%  required: no
 #%end
 
+#%option G_OPT_R_INPUT
+#%  key: direction
+#%  label: External D8 drainage-direction raster for routing (r.watershed encoding) [method=dreich]
+#%  description: Optional. If given, routing comes from this raster (e.g. r.watershed -s, or r.fluvial.fastscape); if omitted, the internal FastScape-style D8 routing is used (the canonical DrEICH pathway)
+#%  required: no
+#%end
+
 #%option G_OPT_V_OUTPUT
 #%  key: output
 #%  label: Output channel-head points (dreich) or colluvial-to-fluvial transition points (slope_area)
-#%  required: yes
+#%  required: no
 #%end
 
 #%option G_OPT_V_OUTPUT
 #%  key: network
 #%  label: Output fluvial network (vector lines, channel heads and everything downstream) [method=dreich]
 #%  description: Linked stream network in v.stream.network format (cat, x1, y1, x2, y2, tostream; tostream=0 = exits map), so it is a ready-to-use directed graph
+#%  required: no
+#%end
+
+#%option G_OPT_R_OUTPUT
+#%  key: network_raster
+#%  label: Output fluvial network as a raster stream map (CELL; cell value = link cat, NULL off-network) [method=dreich]
+#%  description: Raster form of the network for downstream GRASS modules; cell values match the network= vector cats
 #%  required: no
 #%end
 
@@ -203,16 +217,26 @@ def main():
 
 def _run_dreich(options, flags):
     """DrEICH chi-z morphological channel heads (Clubb et al., 2014), via the
-    faithful LSDTopoTools port in rivernetworkx.dreich. Needs only the DEM; fill,
-    flow routing, tangential curvature, valleys and the chi-z split are all
-    computed internally."""
+    faithful LSDTopoTools port in rivernetworkx.dreich. Needs only the DEM: fill,
+    routing, tangential curvature, valleys and the chi-z split are all computed
+    internally. Routing defaults to the internal FastScape-style D8 (the
+    canonical DrEICH pathway) but can be supplied externally via direction=.
+    Emits any of: channel-head points (output), the downstream fluvial network as
+    vector lines (network) and/or as a raster stream map (network_raster)."""
     import numpy as np
     from rivernetworkx import dreich
-    from rivernetworkx.grass_io import read_raster_gs
+    from rivernetworkx.grass_io import read_raster_gs, read_raster_int_gs
 
     elevation = options['elevation']
     output = options['output']
     network = options['network']
+    network_raster = options['network_raster']
+    if not (output or network or network_raster):
+        gscript.fatal("method=dreich needs at least one output: 'output' "
+                      "(channel-head points), 'network' (vector stream network) "
+                      "and/or 'network_raster' (raster stream network).")
+    want_fi = bool(network or network_raster)
+
     z, region = read_raster_gs(elevation)
     nsres, ewres = region['nsres'], region['ewres']
     if abs(nsres - ewres) > 1e-6 * max(nsres, ewres):
@@ -221,6 +245,18 @@ def _run_dreich(options, flags):
     cellsize = nsres
     nodata = -9999.0
     z = np.where(np.isfinite(z), z, nodata)
+
+    direction = None
+    if options['direction']:
+        # CELL raster -> integer reader (r.out.bin float read would garble it)
+        direction, dregion = read_raster_int_gs(options['direction'])
+        if direction.shape != z.shape:
+            gscript.fatal("direction raster <%s> (%dx%d) does not match the "
+                          "elevation (%dx%d); align the region."
+                          % (options['direction'], direction.shape[0],
+                             direction.shape[1], z.shape[0], z.shape[1]))
+        gscript.message("Routing from external direction raster <%s>."
+                        % options['direction'])
 
     gscript.message("DrEICH: filling, routing, curvature, valleys, chi-z split.")
     result = dreich.extract_channel_heads(
@@ -231,37 +267,43 @@ def _run_dreich(options, flags):
         min_segment_length=int(options['min_segment_length']),
         window_radius=float(options['window_radius']),
         tan_curv_threshold=float(options['tan_curv_threshold']),
-        return_flowinfo=bool(network))
-    # extract_channel_heads returns (heads, flowinfo) only when network is wanted.
-    heads, fi = result if network else (result, None)
+        direction=direction, return_flowinfo=want_fi)
+    heads, fi = (result if want_fi else (result, None))
     if not heads:
         gscript.fatal("No channel heads found; check the DEM, threshold, or "
                       "curvature parameters.")
     gscript.message("Found %d DrEICH channel heads." % len(heads))
 
     west, north = region['west'], region['north']
-    tmp = tempfile.NamedTemporaryFile(mode='w', suffix='.txt', delete=False)
-    try:
-        for row, col in heads:
-            x = west + (col + 0.5) * ewres
-            y = north - (row + 0.5) * nsres
-            tmp.write("%.6f|%.6f\n" % (x, y))
-        tmp.close()
-        gscript.run_command(
-            'v.in.ascii', input=tmp.name, output=output, format='point',
-            separator='pipe', x=1, y=2, cat=0,
-            columns="x double precision, y double precision",
-            overwrite=gscript.overwrite(), quiet=True)
-    finally:
-        os.remove(tmp.name)
-    gscript.message("Wrote %d channel-head points to vector <%s>." % (len(heads), output))
 
-    if network:
-        from rivernetworkx import dreich as _dreich
-        segments = _dreich.channel_network_segments(fi, heads)
-        _write_network(segments, network, west, north, ewres, nsres)
-        gscript.message("Wrote fluvial network (%d links) to vector <%s>."
-                        % (len(segments), network))
+    if output:
+        tmp = tempfile.NamedTemporaryFile(mode='w', suffix='.txt', delete=False)
+        try:
+            for row, col in heads:
+                x = west + (col + 0.5) * ewres
+                y = north - (row + 0.5) * nsres
+                tmp.write("%.6f|%.6f\n" % (x, y))
+            tmp.close()
+            gscript.run_command(
+                'v.in.ascii', input=tmp.name, output=output, format='point',
+                separator='pipe', x=1, y=2, cat=0,
+                columns="x double precision, y double precision",
+                overwrite=gscript.overwrite(), quiet=True)
+        finally:
+            os.remove(tmp.name)
+        gscript.message("Wrote %d channel-head points to vector <%s>."
+                        % (len(heads), output))
+
+    if want_fi:
+        segments = dreich.channel_network_segments(fi, heads)
+        if network:
+            _write_network(segments, network, west, north, ewres, nsres)
+            gscript.message("Wrote fluvial network (%d links) to vector <%s>."
+                            % (len(segments), network))
+        if network_raster:
+            _write_network_raster(segments, network_raster, region)
+            gscript.message("Wrote fluvial network (%d links) to raster <%s>."
+                            % (len(segments), network_raster))
 
 
 def _write_network(segments, network, west, north, ewres, nsres):
@@ -309,6 +351,31 @@ def _write_network(segments, network, west, north, ewres, nsres):
         os.remove(sql_tmp.name)
 
 
+def _write_network_raster(segments, network_raster, region):
+    """Write the channel network as a CELL raster: each link's cells carry its
+    cat (matching the network= vector), off-network cells become NULL. Headless
+    via an int32 binary + r.in.bin (integer, bytes=4; the 0 background -> NULL)."""
+    rows, cols = region['rows'], region['cols']
+    grid = np.zeros((rows, cols), dtype='<i4')
+    for seg in segments:
+        cat = seg['cat']
+        for (r, c) in seg['cells']:
+            grid[r, c] = cat
+    tmp = tempfile.NamedTemporaryFile(suffix='.bin', delete=False)
+    tmp.close()
+    try:
+        grid.tofile(tmp.name)
+        # integer data (no -f flag), bytes=4 -> CELL; the 0 background is NULL
+        gscript.run_command('r.in.bin', input=tmp.name, output=network_raster,
+                            bytes=4, anull=0,
+                            north=region['north'], south=region['south'],
+                            east=region['east'], west=region['west'],
+                            rows=rows, cols=cols,
+                            overwrite=gscript.overwrite(), quiet=True)
+    finally:
+        os.remove(tmp.name)
+
+
 def _run_slope_area(options, flags):
     import rivernetworkx as rnx
     elevation = options['elevation']
@@ -320,8 +387,13 @@ def _run_slope_area(options, flags):
     min_slope = float(options['min_slope'])
     max_area = float(options['max_area']) if options['max_area'] else None
 
+    if not output:
+        gscript.fatal("method=slope_area requires 'output' (transition points).")
     if not accumulation or not streams:
         gscript.fatal("method=slope_area requires both 'accumulation' and 'streams'.")
+    if options['network'] or options['network_raster']:
+        gscript.warning("network / network_raster outputs are only produced by "
+                        "method=dreich; ignoring for method=slope_area.")
 
     # Read the over-extracted network with no topology requirement: the
     # slope-area break and the area-crossing placement are both per-segment and
