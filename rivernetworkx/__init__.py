@@ -43,3 +43,12 @@ from .grass_io import (  # noqa: F401
     read_stream_segments,
     build_network,
 )
+
+# DrEICH channel-head extraction (Clubb et al., 2014): a faithful numpy port of the
+# LSDTopoTools pipeline. Pure (no GRASS); scipy is imported lazily inside the
+# curvature step. Used by r.fluvial.channelheads method=dreich.
+from .dreich import (  # noqa: F401
+    extract_channel_heads,
+    fill as fill_dem,
+    tangential_curvature,
+)
