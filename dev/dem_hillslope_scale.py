@@ -1,9 +1,16 @@
-"""Estimate the hillslope length scale of the Mid Bailey Run 1 m DEM, to set a
-geomorphically-motivated constant curvature window (Grieve et al., 2016; Roering
+"""Estimate the CURVATURE MEASUREMENT SCALE of the Mid Bailey Run 1 m DEM, to set
+a geomorphically-motivated constant curvature window (Grieve et al., 2016; Roering
 et al., 2010; Hurst et al., 2012): compute the spread (std and IQR) of tangential
-curvature over a range of window radii and find the scaling break. Below the
-break curvature is noise/microtopography-dominated (steep decline with window);
-above it, hillslope-form-dominated (gentler). The break radius ~ hillslope scale.
+curvature over a range of window radii and find the scaling break. Below the break
+curvature is noise/microtopography-dominated (steep decline); above it, organized
+topography (gentler).
+
+NB: this break (~5-7 m here, and weak because the terrain is self-affine) is the
+curvature radius of ridge/valley-head features, i.e. the right curvature window --
+it is NOT the hillslope LENGTH L_H (divide to channel head, ~100 m for Bailey).
+Grieve et al. loosely call the window 'the hillslope scale'; don't confuse it with
+L_H. The DrEICH resolution limit is set by this few-metre valley-head feature
+scale, not by L_H.
 """
 import numpy as np
 from rivernetworkx import dreich as D
@@ -44,8 +51,8 @@ def main():
         print('%7d   %11.5g   %11.5g   %12.3f' % (ww, stds[i], iqrs[i], slope[i]))
     # the break: where the (negative) slope is steepest -> flattens just after
     brk = WINDOWS[int(np.argmin(slope))]
-    print('\nsteepest-decline window (slope min) ~ %d m; '
-          'hillslope scale is at/just above the break.' % brk)
+    print('\nsteepest-decline window (slope min) ~ %d m; the curvature measurement '
+          'scale is at/just above the break (NOT the hillslope length L_H).' % brk)
 
 
 if __name__ == '__main__':

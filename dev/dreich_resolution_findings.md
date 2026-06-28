@@ -73,10 +73,19 @@ al. Fig 4/5). What does NOT stand: "the threshold scaling directly measures the
 Hurst exponent." The constant-window sweep disentangles the window vs averaging
 contributions.
 
-**Hillslope length scale** (`dev/dem_hillslope_scale.py`): curvature spread breaks
-at ~4–6 m and flattens beyond, giving a hillslope scale of ~5–7 m (short
-hillslopes; low-relief Ohio). Used as the constant curvature window W_h = 7 m
-(also the validated value).
+**Curvature measurement scale** (`dev/dem_hillslope_scale.py`): curvature spread
+breaks marginally at ~4–6 m and flattens beyond (the break is weak because the
+terrain is self-affine, so curvature-std vs window is near a featureless power law
+in 2–30 m). This ~5–7 m is the curvature radius of ridge/valley-head features and
+the appropriate curvature window — used as W_h = 7 m (the validated value).
+
+**NOT the hillslope length.** The hillslope length L_H (divide to channel head)
+for Bailey Run is ~100 m (from ~637 heads / ~36 km² → valleys ~235 m apart). The
+DrEICH resolution limit is set by the few-metre **valley-head convergence
+feature** (≈ the curvature window), NOT by L_H — you can resolve a 100 m hillslope
+at 8 m, but the fine convergent fingertip that marks the channel head is smoothed
+away. (Earlier text loosely called the ~5–7 m curvature scale the "hillslope
+scale", following Grieve et al.'s loose usage; corrected here.)
 
 **Grieve, Mudd, Hurst, Milodowski & Furbish (2016), *Earth Surf. Dynam.* 4,
 627–653** ("How does grid-resolution modulate the topographic expression of
@@ -140,11 +149,12 @@ same fixed 0.1) which gave 0 beyond 1 m, this isolates the cause:
   at 7 m, heads still fall 640→345→104→12 over 1→4 m (count_kept 1.0→0.54→0.16→0.02).
   That steep loss is averaging removing the fine channels — unavoidable (metric b).
 - **A fixed threshold is resolution-robust only while the window can stay constant**
-  — here res ≤ ~4–5 m, set by the short (~7 m) hillslope scale. Past that the window
-  must grow (singular otherwise), and fixed 0.1 collapses to 0 by 8 m.
+  — here res ≤ ~4–5 m, set by the ~7 m curvature window (the valley-head feature
+  scale, NOT the ~100 m hillslope length). Past that the window must grow (singular
+  otherwise), and fixed 0.1 collapses to 0 by 8 m.
 
-So: hold the window at the hillslope scale and a *fixed* threshold works up to ~the
-hillslope-scale resolution; beyond it, only an adaptive threshold recovers anything
+So: hold the window at the curvature/valley-head scale and a *fixed* threshold works
+up to ~that resolution; beyond it, only an adaptive threshold recovers anything
 (the `adapt2` row), and those heads are few and increasingly unreliable. Goodness
 of fit of the `cwfix` detections (median distance to a 1 m head): 26 m @2m, 54 m
 @3m; sensitivity/reliability @30 m: 0.31/0.57 @2m, 0.04/0.23 @3m.
