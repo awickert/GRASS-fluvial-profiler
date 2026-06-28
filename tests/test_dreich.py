@@ -125,5 +125,72 @@ def test_extract_runs_and_returns_cells():
         assert 0 <= r < nr and 0 <= c < nc
 
 
+# --------------------------------------------------------------- network split
+def _y_flowinfo():
+    """Two channels (heads at (0,0) and (0,4)) joining at (2,2), then a trunk to
+    the outlet at (5,2). Walls elsewhere. Returns (fi, heads)."""
+    W = 100.0
+    z = np.full((6, 5), W, dtype=np.float32)
+    for (r, c), v in {(0, 0): 9, (1, 1): 8, (2, 2): 6, (3, 2): 5,
+                      (4, 2): 4, (5, 2): 3, (0, 4): 9, (1, 3): 8}.items():
+        z[r, c] = v
+    fi = D.build_flowinfo(z, nodata=-9999.0, cellsize=1.0)
+    return fi, [(0, 0), (0, 4)]
+
+
+def test_channel_network_segments_topology():
+    fi, heads = _y_flowinfo()
+    segs = D.channel_network_segments(fi, heads)
+    # two branches + one trunk = three links
+    assert len(segs) == 3
+    by_cat = {s['cat']: s for s in segs}
+    assert set(by_cat) == {1, 2, 3}
+    # cats are assigned by upstream (row, col): the two heads come before the
+    # confluence-rooted trunk.
+    assert by_cat[1]['cells'][0] == (0, 0)
+    assert by_cat[2]['cells'][0] == (0, 4)
+    assert by_cat[3]['cells'][0] == (2, 2)
+    # both branches drain into the trunk (cat 3); the trunk exits the map (0).
+    assert by_cat[1]['tostream'] == 3
+    assert by_cat[2]['tostream'] == 3
+    assert by_cat[3]['tostream'] == 0
+    # the confluence cell (2,2) is shared: it ends each branch and starts the trunk.
+    assert by_cat[1]['cells'][-1] == (2, 2)
+    assert by_cat[2]['cells'][-1] == (2, 2)
+    assert by_cat[3]['cells'][-1] == (5, 2)
+
+
+def test_channel_network_tostream_is_a_converging_tree():
+    fi, heads = _y_flowinfo()
+    segs = D.channel_network_segments(fi, heads)
+    cats = {s['cat'] for s in segs}
+    # every non-zero tostream references a real link (no dangling edges)...
+    for s in segs:
+        assert s['tostream'] == 0 or s['tostream'] in cats
+    # ...and following tostream from any link terminates at the outlet (no cycles).
+    nxt = {s['cat']: s['tostream'] for s in segs}
+    for c in cats:
+        seen, cur = set(), c
+        while cur != 0:
+            assert cur not in seen          # would be a cycle
+            seen.add(cur)
+            cur = nxt[cur]
+
+
+def test_return_flowinfo_round_trips_through_network():
+    nr, nc = 60, 60
+    z = (np.arange(nr)[:, None] * -0.5 + 100.0) * np.ones((1, nc))
+    valley = np.exp(-((np.arange(nc)[None, :] - nc / 2) ** 2) / 8.0) * 3.0
+    z = (z - valley).astype(np.float32)
+    heads, fi = D.extract_channel_heads(z, nodata=-9999.0, cellsize=1.0,
+                                        threshold=20, min_segment_length=5,
+                                        return_flowinfo=True)
+    segs = D.channel_network_segments(fi, heads)
+    # the network reaches every head: each head is the upstream end of some link.
+    starts = {s['cells'][0] for s in segs}
+    for h in heads:
+        assert h in starts
+
+
 if __name__ == '__main__':
     raise SystemExit(pytest.main([__file__, '-v']))
