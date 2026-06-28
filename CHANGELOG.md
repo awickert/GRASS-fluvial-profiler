@@ -42,8 +42,13 @@ and this project aims to follow [Semantic Versioning](https://semver.org/).
   (r.watershed encoding), the canonical FastScape/LSDFlowInfo routing &mdash; feed
   it straight into `r.fluvial.channelheads direction=` or `r.stream.distance` to
   keep routing internally consistent across the toolkit.
+- **`rivernetworkx`** gains the **χ–z channel-head primitives** in `core`:
+  `chi` (the integral channel coordinate of Perron & Royden, 2013),
+  `channel_head_chi_split` (the DrEICH χ–z regression head-finder &mdash; splits a
+  hilltop&rarr;junction profile into an upslope hillslope and a downslope channel),
+  and `strahler_order` (Strahler stream order on the segment graph).
 - **`rivernetworkx`** gains `dreich` (`extract_channel_heads`,
-  `channel_network_segments`, `build_flowinfo_from_directions`,
+  `channel_network_segments`, `drainage_divides`, `build_flowinfo_from_directions`,
   `directions_from_flowinfo`, `fill`,
   `tangential_curvature`) and `fastscape` (`evolve`), plus gscript-only raster I/O
   helpers `read_raster_gs` / `read_raster_int_gs` / `write_raster_gs` (via
