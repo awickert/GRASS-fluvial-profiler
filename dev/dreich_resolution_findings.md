@@ -126,6 +126,29 @@ precision and recall.
    30–75 m) — **until 30 m, where precision collapses to 0** (the 4 heads do not
    correspond to any 1 m head).
 
+## Constant hillslope-scale window + fixed threshold (disentangles the mechanism)
+
+`cwfix`: window held at W_h = 7 m where valid (grows to ~1.5·res only past res≈5 m,
+the validity limit), tan_curv = 0.1 fixed, standard other knobs. Heads:
+1m=640, 2m=345, 3m=104, 4m=12, 5m=2, ≥8m=0. Compared to `std` (window 7·res,
+same fixed 0.1) which gave 0 beyond 1 m, this isolates the cause:
+
+- **Window-growth is the catastrophic lever.** At 2 m the ONLY difference between
+  `std` (0 heads) and `cwfix` (345 heads) is the window (14 m vs 7 m). Oversmoothing
+  by the growing window, not the averaging, is what zeroed the fixed-threshold runs.
+- **DEM-averaging drives the count loss, even at a fixed window.** With window held
+  at 7 m, heads still fall 640→345→104→12 over 1→4 m (count_kept 1.0→0.54→0.16→0.02).
+  That steep loss is averaging removing the fine channels — unavoidable (metric b).
+- **A fixed threshold is resolution-robust only while the window can stay constant**
+  — here res ≤ ~4–5 m, set by the short (~7 m) hillslope scale. Past that the window
+  must grow (singular otherwise), and fixed 0.1 collapses to 0 by 8 m.
+
+So: hold the window at the hillslope scale and a *fixed* threshold works up to ~the
+hillslope-scale resolution; beyond it, only an adaptive threshold recovers anything
+(the `adapt2` row), and those heads are few and increasingly unreliable. Goodness
+of fit of the `cwfix` detections (median distance to a 1 m head): 26 m @2m, 54 m
+@3m; sensitivity/reliability @30 m: 0.31/0.57 @2m, 0.04/0.23 @3m.
+
 ## Caveats (read before trusting these numbers)
 
 - **"1 m = truth" is an assumption.** Recall/precision measure recovery of the

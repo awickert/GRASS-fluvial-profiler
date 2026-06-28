@@ -37,7 +37,9 @@ for N in $RESOLUTIONS; do
     const) WR=$(python3 -c "import math;print(max(${WH:-7}, math.ceil(1.5*$N)))");;
     *)     WR=$((7 * N));;
   esac
-  if [ "$SCHEME" != "std" ]; then          # any adaptive scheme uses the calibration
+  if [ -n "${FIXTC:-}" ]; then              # explicit fixed threshold override
+    TC=$FIXTC
+  elif [ "$SCHEME" != "std" ]; then         # any adaptive scheme uses the calibration
     TC=$(grep -E "^${N} " "$CURV_PCTL" 2>/dev/null | awk '{print $2}')
     [ -z "$TC" ] && TC=0.1
   else
