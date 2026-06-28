@@ -40,6 +40,13 @@ ROOT2INV = np.float32(0.707106781)        # LSDTT's literal 1/sqrt(2)
 # neighbour order N NE E SE S SW W NW; even index cardinal, odd diagonal
 _OFF = [(-1, 0), (-1, 1), (0, 1), (1, 1), (1, 0), (1, -1), (0, -1), (-1, -1)]
 
+# r.watershed drainage-direction encoding: |dir| in 1..8, CCW from NE
+#   1 NE  2 N  3 NW  4 W  5 SW  6 S  7 SE  8 E   (negative = drains off-region)
+# |dir| -> (drow, dcol), indexed by |dir| (slot 0 unused):
+_RWS_DROW = np.array([0, -1, -1, -1, 0, 1, 1, 1, 0])
+_RWS_DCOL = np.array([0, 1, 0, -1, -1, -1, 0, 1, 1])
+_RWS_CARDINAL = frozenset({2, 4, 6, 8})
+
 
 # ---------------------------------------------------------------- depression fill
 def fill(dem, nodata=-9999.0, min_slope=0.0001, cellsize=1.0):
@@ -171,6 +178,53 @@ def build_flowinfo(dem, nodata=-9999.0, cellsize=1.0):
     return dict(nr=nr, nc=nc, ndf=ndf, res=float(cellsize), N=N,
                 NodeIndex=NodeIndex, row_of=rr.astype(np.int64), col_of=cc.astype(np.int64),
                 recv=recv, flc=flc, ndon=ndon, delta=delta, donorstack=donorstack,
+                baselevel=np.where(recv == np.arange(N))[0])
+
+
+def build_flowinfo_from_directions(direction, dem, nodata=-9999.0, cellsize=1.0):
+    """Build a FlowInfo from an external D8 drainage-direction raster instead of
+    computing steepest descent internally. ``direction`` uses the r.watershed
+    encoding (1..8, CCW from NE; negative = drains off the region edge; 0/NaN =
+    no flow). Only ``recv`` / ``flc`` come from the directions; node indexing and
+    the donor stack are built exactly as :func:`build_flowinfo`, so the result is
+    a drop-in FlowInfo for the rest of the DrEICH pipeline.
+
+    A node's receiver is the in-region, non-no-data neighbour its direction points
+    to; cells whose direction is off-grid, off-region, no-data, or unset become
+    base levels (self-receiver). ``dem`` supplies the grid shape and the valid /
+    no-data mask (use the same surface the rest of the pipeline runs on).
+    """
+    z = dem.astype(np.float32)
+    nr, nc = z.shape
+    valid = z != np.float32(nodata)
+    NodeIndex = np.full((nr, nc), -1, dtype=np.int64)
+    rr, cc = np.where(valid)
+    N = rr.size
+    NodeIndex[rr, cc] = np.arange(N)
+
+    d = np.asarray(direction)[rr, cc]
+    d = np.where(np.isfinite(d), d, 0)                  # NaN/NULL -> no flow
+    a = np.abs(np.rint(d)).astype(np.int64)
+    a = np.where((a >= 1) & (a <= 8), a, 0)             # out-of-range -> no flow
+    tr = rr + _RWS_DROW[a]
+    tc = cc + _RWS_DCOL[a]
+    ingrid = (a > 0) & (tr >= 0) & (tr < nr) & (tc >= 0) & (tc < nc)
+    trc = np.clip(tr, 0, nr - 1)
+    tcc = np.clip(tc, 0, nc - 1)
+    routes = ingrid & valid[trc, tcc]                  # receiver is a real cell
+    recv = np.where(routes, NodeIndex[trc, tcc], np.arange(N))   # else self (outlet)
+    flc = np.where(routes, np.where(np.isin(a, list(_RWS_CARDINAL)), 1, 2),
+                   0).astype(np.int8)
+
+    ndon = np.zeros(N, dtype=np.int64)
+    np.add.at(ndon, recv, 1)
+    delta = np.zeros(N + 1, dtype=np.int64)
+    delta[1:] = np.cumsum(ndon)
+    donorstack = np.argsort(recv, kind='stable')
+    return dict(nr=nr, nc=nc, ndf=np.float32(nodata), res=float(cellsize), N=N,
+                NodeIndex=NodeIndex, row_of=rr.astype(np.int64),
+                col_of=cc.astype(np.int64), recv=recv, flc=flc, ndon=ndon,
+                delta=delta, donorstack=donorstack,
                 baselevel=np.where(recv == np.arange(N))[0])
 
 
@@ -523,7 +577,8 @@ def extract_channel_heads(dem, nodata=-9999.0, cellsize=1.0, *, fill_dem=True,
                           threshold=100, min_slope=0.0001, A_0=1000.0, m_over_n=0.525,
                           n_connecting_nodes=10, min_segment_length=10,
                           window_radius=7, tan_curv_threshold=0.1, return_filled=False,
-                          return_flowinfo=False, filled=None, curvature=None):
+                          return_flowinfo=False, filled=None, curvature=None,
+                          direction=None):
     """Extract DrEICH channel heads from a DEM array.
 
     Parameters
@@ -540,6 +595,11 @@ def extract_channel_heads(dem, nodata=-9999.0, cellsize=1.0, *, fill_dem=True,
     min_slope, A_0, m_over_n, n_connecting_nodes, min_segment_length,
     window_radius, tan_curv_threshold :
         DrEICH parameters (LSDTT defaults: 0.0001, 1000, 0.525, 10, 10, 7, 0.1).
+    filled, curvature, direction : optional ndarrays
+        Inject a pre-filled DEM, a curvature field, and/or an external D8
+        drainage-direction raster (r.watershed encoding) to replace the
+        corresponding internal step. ``direction`` lets the routing come from
+        another module (e.g. ``r.watershed -s`` or ``r.fluvial.fastscape``).
 
     Returns
     -------
@@ -549,16 +609,19 @@ def extract_channel_heads(dem, nodata=-9999.0, cellsize=1.0, *, fill_dem=True,
         channel network downstream of the heads) is appended. The return is a
         tuple in the order ``(heads[, filled][, flowinfo])`` when either is set.
     """
-    # ``filled`` and ``curvature`` may be injected to swap in alternative
-    # components (e.g. a GRASS r.fill.dir surface or r.param.scale curvature) for
-    # comparison against the faithful LSDTopoTools pipeline.
+    # ``filled``, ``curvature`` and ``direction`` may be injected to swap in
+    # alternative components for comparison or to consume routing from another
+    # module: ``direction`` is an external D8 drainage-direction raster
+    # (r.watershed encoding) used instead of internal steepest descent. Curvature
+    # is always faithful (still computed on the filled surface).
     if filled is None:
         filled = fill(dem, nodata, min_slope, cellsize) if fill_dem else dem.astype(np.float32)
     else:
         filled = filled.astype(np.float32)
     tcurv = curvature if curvature is not None else \
         tangential_curvature(filled, nodata, cellsize, window_radius)
-    fi = build_flowinfo(filled, nodata, cellsize)
+    fi = (build_flowinfo_from_directions(direction, filled, nodata, cellsize)
+          if direction is not None else build_flowinfo(filled, nodata, cellsize))
     contributing_area(fi)
     sources = get_sources(fi, threshold)
     junction_network(fi, sources)
