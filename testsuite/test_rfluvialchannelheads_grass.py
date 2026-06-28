@@ -82,7 +82,7 @@ class TestChannelHeadsLSDTT(TestCase):
     @classmethod
     def tearDownClass(cls):
         cls.runModule('g.remove', flags='f', type='raster', name='rough,dem')
-        cls.runModule('g.remove', flags='f', type='vector', name='heads')
+        cls.runModule('g.remove', flags='f', type='vector', name='heads,net')
         cls.del_temp_region()
 
     def test_finds_dreich_heads(self):
@@ -93,6 +93,29 @@ class TestChannelHeadsLSDTT(TestCase):
         self.assertVectorExists('heads')
         topo = gscript.vector_info_topo('heads')
         self.assertGreater(int(topo['points']), 2)        # several channel heads
+
+    def test_emits_fluvial_network(self):
+        # also request the downstream fluvial network as a linked directed graph.
+        self.assertModule('r.fluvial.channelheads', method='lsdtt', elevation='dem',
+                          output='heads', network='net', threshold=15,
+                          window_radius=30, tan_curv_threshold=0.005,
+                          min_segment_length=5, overwrite=True)
+        self.assertVectorExists('net')
+        topo = gscript.vector_info_topo('net')
+        self.assertGreater(int(topo['lines']), 2)         # several stream links
+        # the network carries v.stream.network topology: a 'tostream' column whose
+        # non-zero values all point to real link cats (a converging directed graph).
+        cols = gscript.vector_columns('net')
+        self.assertIn('tostream', cols)
+        recs = gscript.read_command('v.db.select', map='net', columns='cat,tostream',
+                                    flags='c').strip().split('\n')
+        cats, tos = set(), []
+        for line in recs:
+            c, t = line.split('|')
+            cats.add(int(c)); tos.append(int(t))
+        self.assertIn(0, tos)                             # at least one outlet
+        for t in tos:
+            self.assertTrue(t == 0 or t in cats)         # no dangling downstream link
 
 
 if __name__ == '__main__':
