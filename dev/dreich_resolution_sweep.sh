@@ -31,7 +31,12 @@ printf "# scheme=%s  res_m  heads  tan_curv_threshold  status\n" "$SCHEME" > "$S
 for N in $RESOLUTIONS; do
   g.region $EXTENT res=$N -a 2>/dev/null
   r.resamp.stats input=dem output=dem_${N}m method=average --o --q 2>/dev/null
-  WR=$((7 * N))
+  # window mode: grow7 = 7*res cells (default); const = hillslope-scale W_h held
+  # constant where valid, else the smallest valid window (~1.5*res, kr>=2).
+  case "${WINMODE:-grow7}" in
+    const) WR=$(python3 -c "import math;print(max(${WH:-7}, math.ceil(1.5*$N)))");;
+    *)     WR=$((7 * N));;
+  esac
   if [ "$SCHEME" != "std" ]; then          # any adaptive scheme uses the calibration
     TC=$(grep -E "^${N} " "$CURV_PCTL" 2>/dev/null | awk '{print $2}')
     [ -z "$TC" ] && TC=0.1

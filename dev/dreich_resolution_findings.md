@@ -53,15 +53,30 @@ separately controlled run.)
 ## Physical basis of the threshold scaling (and Grieve et al., 2016)
 
 The calibrated thresholds follow a near-perfect power law
-`tan_curv_threshold ≈ 0.118·res^(−1.12)` (R²_log = 0.993). For self-affine
-topography, curvature measured at scale L scales as κ ~ L^(H−2) (H = Hurst
-exponent); with the window = 7·res, that predicts threshold ~ res^(H−2), i.e.
-H = β + 2 = 0.88. Measured **independently** from the 1 m DEM (2nd-order
-structure function, isotropic), **H ≈ 0.93** — agreeing with 0.88 to ~0.05. So
-the threshold reduction is governed by the terrain's self-affine scaling, not
-fitting. (A power-spectrum estimate gave an unphysical H = 1.5 — Hanning/binning
-bias; the structure function is the robust estimator and is trusted here.)
-Code: `dev/dem_hurst.py`.
+`tan_curv_threshold ≈ 0.118·res^(−1.12)` (R²_log = 0.993). The terrain is
+self-affine — Hurst exponent from the 1 m DEM (2nd-order structure function,
+isotropic) is **H ≈ 0.93** (`dev/dem_hurst.py`; a power-spectrum estimate gave an
+unphysical 1.5, a Hanning/binning artifact, so the structure function is trusted).
+
+**CORRECTION (do not over-read the H-match).** I initially inferred H = β+2 = 0.88
+from the threshold slope by assuming threshold ~ res^(H−2), i.e. that curvature
+scales as the naive self-affine 2nd derivative κ ~ L^(H−2). That assumption is
+**wrong here**: measured directly (`dev/dem_hillslope_scale.py`), the polyfit
+curvature spread scales with *window* as only **W^(−0.6)**, not W^(H−2) = W^(−1.07).
+The least-squares 2nd-order fit regularizes the curvature, so it is not a clean
+point 2nd derivative. Consequently the threshold-vs-resolution slope (−1.12) is a
+**combination** of window-growth (~−0.6, since window = 7·res) and DEM-averaging
+(~−0.5), and its near-match to (H−2) = −1.07 is **partly coincidental**. What
+stands: the terrain is self-affine (H≈0.93); the threshold follows a clean
+empirical power law; curvature genuinely shrinks with coarsening (also Grieve et
+al. Fig 4/5). What does NOT stand: "the threshold scaling directly measures the
+Hurst exponent." The constant-window sweep disentangles the window vs averaging
+contributions.
+
+**Hillslope length scale** (`dev/dem_hillslope_scale.py`): curvature spread breaks
+at ~4–6 m and flattens beyond, giving a hillslope scale of ~5–7 m (short
+hillslopes; low-relief Ohio). Used as the constant curvature window W_h = 7 m
+(also the validated value).
 
 **Grieve, Mudd, Hurst, Milodowski & Furbish (2016), *Earth Surf. Dynam.* 4,
 627–653** ("How does grid-resolution modulate the topographic expression of
