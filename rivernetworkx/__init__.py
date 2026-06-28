@@ -50,6 +50,7 @@ from .grass_io import (  # noqa: F401
 from .dreich import (  # noqa: F401
     extract_channel_heads,
     channel_network_segments,
+    drainage_divides,
     build_flowinfo_from_directions,
     directions_from_flowinfo,
     fill as fill_dem,

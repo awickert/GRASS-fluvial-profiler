@@ -603,6 +603,58 @@ def channel_heads_from_valleys(fi, dem, valley, min_segment_length=10,
     return heads_temp, final
 
 
+def drainage_divides(fi, threshold=100):
+    """Trace drainage divides (ridgelines) as basin boundaries from a FlowInfo.
+
+    Channels are the cells whose contributing area >= ``threshold``; each cell is
+    labelled by the channel LINK it ultimately drains into (the network split at
+    confluences, as in :func:`channel_network_segments`); a divide cell is one
+    that is 8-adjacent to a cell draining to a *different* link. Divides are the
+    topological dual of the channel network -- the ridges that wrap each
+    first-order valley -- and (being basin boundaries) are far more robust to
+    coarsening than the convergent valley-head feature itself.
+
+    Returns ``(divide, basin_label)``, both (nr, nc): ``divide`` is boolean
+    (ridge cells), ``basin_label`` is the per-cell draining-link id (-1 where the
+    cell drains nowhere on the network)."""
+    if 'ncontrib' not in fi:
+        contributing_area(fi)
+    nr, nc, N = fi['nr'], fi['nc'], fi['N']
+    recv, row, col, NodeIndex = fi['recv'], fi['row_of'], fi['col_of'], fi['NodeIndex']
+
+    sources = get_sources(fi, threshold)
+    segs = channel_network_segments(fi, [(int(row[s]), int(col[s])) for s in sources])
+    link = np.full(N, -1, dtype=np.int64)
+    for seg in segs:                                  # label channel cells by link
+        cells = np.asarray(seg['cells'])
+        link[NodeIndex[cells[:, 0], cells[:, 1]]] = seg['cat']
+
+    # propagate each hillslope cell's draining-link upstream (downstream-first wave)
+    label = link.copy()
+    known = label >= 0
+    idx = np.arange(N)
+    while True:
+        ready = (~known) & (recv != idx) & known[recv]
+        if not ready.any():
+            break
+        label[ready] = label[recv[ready]]
+        known[ready] = True
+
+    lab = np.full((nr, nc), -1, dtype=np.int64)
+    lab[row, col] = label
+    divide = np.zeros((nr, nc), dtype=bool)
+    for dr in (-1, 0, 1):
+        for dc in (-1, 0, 1):
+            if dr == 0 and dc == 0:
+                continue
+            r0, r1 = max(0, -dr), nr - max(0, dr)
+            c0, c1 = max(0, -dc), nc - max(0, dc)
+            a = lab[r0:r1, c0:c1]
+            b = lab[r0 + dr:r1 + dr, c0 + dc:c1 + dc]
+            divide[r0:r1, c0:c1] |= (a != b) & (a >= 0) & (b >= 0)
+    return divide, lab
+
+
 # ---------------------------------------------------------------- top-level API
 def extract_channel_heads(dem, nodata=-9999.0, cellsize=1.0, *, fill_dem=True,
                           threshold=100, min_slope=0.0001, A_0=1000.0, m_over_n=0.525,

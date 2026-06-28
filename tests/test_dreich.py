@@ -223,6 +223,27 @@ def _encode_directions(fi):
     return dirgrid
 
 
+def test_drainage_divides_lie_on_ridges():
+    # two parallel valleys with a ridge between them; the divide must fall on the
+    # ridge (higher, divergent ground), not in the valleys.
+    nr, nc = 40, 40
+    z = (nr - np.arange(nr))[:, None] * 0.5 * np.ones((1, nc))      # drains to the south
+    for cc in (10, 30):                                            # incise two valleys
+        z -= 4.0 * np.exp(-((np.arange(nc)[None, :] - cc) ** 2) / 8.0)
+    z = z.astype(np.float32)
+    filled = D.fill(z, -9999.0, 0.0001, 1.0)
+    fi = D.build_flowinfo(filled, -9999.0, 1.0)
+    D.contributing_area(fi)
+    divide, label = D.drainage_divides(fi, threshold=15)
+    assert divide.any()
+    valid = filled != np.float32(-9999.0)
+    # divide cells sit higher than the rest (ridges, not valley floors)
+    assert filled[divide].mean() > filled[valid & ~divide].mean()
+    # and the main divide is near the central ridge column (~20), away from valleys
+    div_cols = np.where(divide)[1]
+    assert 14 < np.median(div_cols) < 26
+
+
 def test_directions_from_flowinfo_round_trips():
     # encode a FlowInfo's routing to an r.watershed direction raster, decode it
     # back, and confirm the receivers match (the encoder is the decoder's inverse).
