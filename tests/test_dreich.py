@@ -125,6 +125,17 @@ def test_extract_runs_and_returns_cells():
         assert 0 <= r < nr and 0 <= c < nc
 
 
+def test_tangential_curvature_rejects_subcell_window():
+    # window smaller than the cell excludes all neighbours -> a clear error,
+    # not a cryptic singular-matrix LinAlgError.
+    z = np.random.RandomState(0).rand(20, 20).astype(np.float32)
+    with pytest.raises(ValueError, match="window too small"):
+        D.tangential_curvature(z, nodata=-9999.0, cellsize=10.0, window_radius=7)
+    # a window that reaches the neighbours is fine
+    cu = D.tangential_curvature(z, nodata=-9999.0, cellsize=10.0, window_radius=20)
+    assert cu.shape == z.shape
+
+
 # --------------------------------------------------------------- network split
 def _y_flowinfo():
     """Two channels (heads at (0,0) and (0,4)) joining at (2,2), then a trunk to

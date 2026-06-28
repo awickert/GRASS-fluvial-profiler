@@ -114,6 +114,13 @@ def tangential_curvature(dem, nodata=-9999.0, cellsize=1.0, window_radius=7):
     x = xk[mask == 1]; y = yk[mask == 1]
     basis = [x ** 2, y ** 2, x * y, x, y, np.ones_like(x)]
     A = np.array([[np.sum(basis[r] * basis[c]) for c in range(6)] for r in range(6)])
+    if int(mask.sum()) < 6 or np.linalg.matrix_rank(A) < 6:
+        raise ValueError(
+            "tangential_curvature: curvature window too small for the cell size "
+            "(window_radius=%g, cellsize=%g -> only %d cells inside the window; "
+            "the 2nd-order polyfit needs >= 6). The window must reach the "
+            "neighbours: use window_radius >= ~1.5*cellsize."
+            % (window_radius, cellsize, int(mask.sum())))
     Ainv = np.linalg.inv(A)
     kernels = []
     for kvals in basis:
