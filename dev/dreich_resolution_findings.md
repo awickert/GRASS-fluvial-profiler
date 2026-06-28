@@ -50,6 +50,32 @@ threshold the loss is near-total past 1 m; under the relative criterion it is th
 threshold loss is near-total" reading is inferred from the std sweep, not a
 separately controlled run.)
 
+## Physical basis of the threshold scaling (and Grieve et al., 2016)
+
+The calibrated thresholds follow a near-perfect power law
+`tan_curv_threshold ≈ 0.118·res^(−1.12)` (R²_log = 0.993). For self-affine
+topography, curvature measured at scale L scales as κ ~ L^(H−2) (H = Hurst
+exponent); with the window = 7·res, that predicts threshold ~ res^(H−2), i.e.
+H = β + 2 = 0.88. Measured **independently** from the 1 m DEM (2nd-order
+structure function, isotropic), **H ≈ 0.93** — agreeing with 0.88 to ~0.05. So
+the threshold reduction is governed by the terrain's self-affine scaling, not
+fitting. (A power-spectrum estimate gave an unphysical H = 1.5 — Hanning/binning
+bias; the structure function is the robust estimator and is trusted here.)
+Code: `dev/dem_hurst.py`.
+
+**Grieve, Mudd, Hurst, Milodowski & Furbish (2016), *Earth Surf. Dynam.* 4,
+627–653** ("How does grid-resolution modulate the topographic expression of
+geomorphic processes?") is essentially this experiment by the DrEICH group, and
+corroborates it: identical tangential-curvature definition (their Eq. 4); the
+curvature **window is set by the hillslope length scale, not grid resolution**,
+and hillslope-scale curvature is **only reliable at resolutions ≤ ~10 m** (so our
+12–30 m points are beyond the trustworthy range); their threshold is set from the
+**curvature distribution** (deviation from normal on a Q–Q plot — same family as
+our fraction-matching); and they find DrEICH heads degrade fast and "bear little
+relation" to the 1 m heads at coarse resolution. Their **reliability** (Eq. 5)
+and **sensitivity** (Eq. 6), with a 30 m coincidence radius, are exactly our
+precision and recall.
+
 ## Head counts and correctness vs the 1 m truth
 
 | res (m) | std | adapt | adapt2 | adapt2 recall | adapt2 precision | adapt2 med det→truth |
