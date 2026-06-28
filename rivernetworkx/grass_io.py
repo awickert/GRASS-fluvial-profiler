@@ -233,6 +233,32 @@ def read_raster_gs(rastname):
     return arr, region
 
 
+def read_raster_int_gs(rastname, null=0):
+    """Read an integer (CELL) raster into a north-up int64 array via ``r.out.bin``
+    -- gscript only, no pygrass/ctypes. Use this (not :func:`read_raster_gs`) for
+    CELL maps: ``r.out.bin bytes=8`` writes raw integers, which read back as
+    garbage if interpreted as doubles. NULL cells become ``null``. Returns
+    ``(array, region_dict)`` with the same region keys as :func:`read_raster_gs`."""
+    import os
+    import tempfile
+    from grass.script import core as gcore
+    reg = gcore.region()
+    rows, cols = int(reg['rows']), int(reg['cols'])
+    tmp = tempfile.NamedTemporaryFile(suffix='.bin', delete=False)
+    tmp.close()
+    try:
+        gcore.run_command('r.out.bin', input=rastname, output=tmp.name,
+                          bytes=4, null=null, quiet=True)
+        arr = np.fromfile(tmp.name, dtype='<i4', count=rows * cols).reshape(rows, cols)
+    finally:
+        os.remove(tmp.name)
+    region = {'west': float(reg['w']), 'east': float(reg['e']),
+              'north': float(reg['n']), 'south': float(reg['s']),
+              'nsres': float(reg['nsres']), 'ewres': float(reg['ewres']),
+              'rows': rows, 'cols': cols}
+    return arr.astype(np.int64), region
+
+
 def write_raster_gs(arr, rastname, region, overwrite=False):
     """Write a north-up float array to a raster via ``r.in.bin`` -- gscript only.
     NaN (or +/-inf) cells become NULL. ``region`` is a dict as returned by
