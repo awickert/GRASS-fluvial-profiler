@@ -45,6 +45,13 @@
 #%  required: yes
 #%end
 
+#%option G_OPT_R_OUTPUT
+#%  key: direction
+#%  label: Output D8 flow-direction raster of the evolved landscape (r.watershed encoding)
+#%  description: The canonical FastScape/LSDFlowInfo routing, for r.fluvial.channelheads direction= or r.stream.distance (1-8 CCW from NE; 0 = pit/outlet)
+#%  required: no
+#%end
+
 #%option
 #%  key: k
 #%  type: double
@@ -174,6 +181,33 @@ def main():
     write_raster_gs(zf_out, output, region, overwrite=gscript.overwrite())
     gscript.message("Wrote evolved DEM to <%s> (relief %.2f)."
                     % (output, float(np.nanmax(zf_out))))
+
+    # optional: the D8 routing of the evolved landscape, as an r.watershed-encoded
+    # direction raster (consumable by r.fluvial.channelheads direction=).
+    if options['direction']:
+        from rivernetworkx import dreich
+        filled = dreich.fill(zf, nodata, min_slope, cellsize)
+        fi = dreich.build_flowinfo(filled, nodata, cellsize)
+        _write_direction(dreich.directions_from_flowinfo(fi), options['direction'], region)
+        gscript.message("Wrote D8 flow-direction raster to <%s>." % options['direction'])
+
+
+def _write_direction(dirarr, name, region):
+    """Write an int32 direction array as a CELL raster (-1 -> NULL), headless via
+    r.in.bin (gscript only, no pygrass)."""
+    import os
+    import tempfile
+    tmp = tempfile.NamedTemporaryFile(suffix='.bin', delete=False)
+    tmp.close()
+    try:
+        dirarr.astype('<i4').tofile(tmp.name)
+        gscript.run_command('r.in.bin', input=tmp.name, output=name, bytes=4, anull=-1,
+                            north=region['north'], south=region['south'],
+                            east=region['east'], west=region['west'],
+                            rows=region['rows'], cols=region['cols'],
+                            overwrite=gscript.overwrite(), quiet=True)
+    finally:
+        os.remove(tmp.name)
 
 
 if __name__ == "__main__":
