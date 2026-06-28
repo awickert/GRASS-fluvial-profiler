@@ -200,6 +200,62 @@ def _read_raster(rastname):
     return arr, bounds
 
 
+# A sentinel for NULL in the binary round-trip; far outside any real elevation.
+_BIN_NULL = 1.0e30
+
+
+def read_raster_gs(rastname):
+    """Read a raster into a north-up float64 array via ``r.out.bin`` -- gscript only,
+    no pygrass/ctypes (works in headless ``grass --exec`` sessions where
+    :func:`_read_raster`'s pygrass ``Region`` cannot load the shared libraries).
+
+    NULL cells become NaN. Returns ``(array, region_dict)`` with the region dict
+    carrying west/north/south/east/nsres/ewres/rows/cols (floats, ints for r/c).
+    """
+    import os
+    import tempfile
+    from grass.script import core as gcore
+    reg = gcore.region()
+    rows, cols = int(reg['rows']), int(reg['cols'])
+    tmp = tempfile.NamedTemporaryFile(suffix='.bin', delete=False)
+    tmp.close()
+    try:
+        gcore.run_command('r.out.bin', input=rastname, output=tmp.name,
+                          bytes=8, null=_BIN_NULL, quiet=True)
+        arr = np.fromfile(tmp.name, dtype='<f8', count=rows * cols).reshape(rows, cols)
+    finally:
+        os.remove(tmp.name)
+    arr = np.where(arr == _BIN_NULL, np.nan, arr).astype(np.float64)
+    region = {'west': float(reg['w']), 'east': float(reg['e']),
+              'north': float(reg['n']), 'south': float(reg['s']),
+              'nsres': float(reg['nsres']), 'ewres': float(reg['ewres']),
+              'rows': rows, 'cols': cols}
+    return arr, region
+
+
+def write_raster_gs(arr, rastname, region, overwrite=False):
+    """Write a north-up float array to a raster via ``r.in.bin`` -- gscript only.
+    NaN (or +/-inf) cells become NULL. ``region`` is a dict as returned by
+    :func:`read_raster_gs`."""
+    import os
+    import tempfile
+    from grass.script import core as gcore
+    a = np.where(np.isfinite(arr), arr, _BIN_NULL).astype('<f8')
+    tmp = tempfile.NamedTemporaryFile(suffix='.bin', delete=False)
+    tmp.close()
+    try:
+        a.tofile(tmp.name)
+        # -f: floating-point data (default is integer); bytes=8 -> double
+        gcore.run_command('r.in.bin', input=tmp.name, output=rastname, bytes=8,
+                          flags='f', anull=_BIN_NULL,
+                          north=region['north'], south=region['south'],
+                          east=region['east'], west=region['west'],
+                          rows=region['rows'], cols=region['cols'],
+                          overwrite=overwrite, quiet=True)
+    finally:
+        os.remove(tmp.name)
+
+
 def _read_geometry_all(streams):
     """Return {cat: (x_array, y_array)} for every line in the vector.
 

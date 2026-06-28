@@ -1,0 +1,57 @@
+<h2>DESCRIPTION</h2>
+
+<em>r.fluvial.fastscape</em> evolves a landscape forward in time under rock
+uplift and detachment-limited fluvial incision, solving the stream-power model
+
+<div class="code"><pre>
+dz/dt = U - K A^m S^n
+</pre></div>
+
+where <em>z</em> is elevation, <em>U</em> rock-uplift rate, <em>A</em> drainage
+area, <em>S</em> channel slope, and <em>K</em>, <em>m</em>, <em>n</em> the
+stream-power coefficient and exponents. The equation is integrated with the
+implicit, stack-ordered <b>FastScape</b> algorithm of Braun &amp; Willett (2013),
+which is unconditionally stable: arbitrarily large timesteps do not cause the
+solution to blow up.
+
+<p>
+Each timestep: rock uplift is added to the interior, flow is routed on a
+depression-filled surface (D8), drainage area and the ordered node stack are
+computed, and the incision term is solved implicitly from downstream to upstream
+(closed-form for <em>n</em>&nbsp;=&nbsp;1, Newton&ndash;Raphson otherwise). The
+solver shares its Braun &amp; Willett flow-routing machinery with
+<em>r.fluvial.channelheads</em>.
+
+<h2>NOTES</h2>
+
+The four domain edges are fixed as base level by default (flag <b>-b</b> disables
+this). Cells are assumed square; for non-square regions the north&ndash;south
+resolution is used and a warning is issued. Per-cell <em>K</em> and <em>U</em>
+rasters may be supplied with <b>k_map</b> and <b>uplift_map</b>.
+
+<p>
+At steady state the model reproduces the classic channel slope&ndash;area
+relation <em>S&nbsp;=&nbsp;(U/K)<sup>1/n</sup>&nbsp;A<sup>-m/n</sup></em>.
+
+<h2>EXAMPLE</h2>
+
+<div class="code"><pre>
+r.fluvial.fastscape input=dem output=dem_evolved \
+    k=1e-5 m=0.5 n=1 uplift=1e-3 dt=1000 nsteps=200
+</pre></div>
+
+<h2>REFERENCES</h2>
+
+Braun, J. and Willett, S.D. (2013). A very efficient O(n), implicit and parallel
+method to solve the stream power equation governing fluvial incision and
+landscape evolution. <em>Geomorphology</em> 180&ndash;181, 170&ndash;179,
+doi:10.1016/j.geomorph.2012.10.008.
+
+<h2>SEE ALSO</h2>
+
+<em><a href="r.fluvial.channelheads.html">r.fluvial.channelheads</a></em>,
+<em><a href="r.watershed.html">r.watershed</a></em>
+
+<h2>AUTHOR</h2>
+
+Andrew Wickert
