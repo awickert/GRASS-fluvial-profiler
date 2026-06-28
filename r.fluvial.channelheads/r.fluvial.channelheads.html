@@ -30,6 +30,18 @@ Durbin&ndash;Watson of the hillslope, segments at least
 The algorithm lives in <em>rivernetworkx.dreich</em>; the GRASS module is a thin
 wrapper.
 
+<p>
+With the optional <b>network</b> output the module also emits the <b>fluvial
+network</b> &mdash; the channel heads and everything downstream of them &mdash; as
+vector lines. The D8 network is traced from each head to its outlet and split
+into links at confluences, in
+<a href="v.stream.network">v.stream.network</a> format: every link carries its
+upstream/downstream endpoints (<tt>x1,y1,x2,y2</tt>) and the category of the
+single downstream link (<tt>tostream</tt>, with <tt>0</tt> marking a link that
+exits the map). The result is therefore already a converging directed graph
+&mdash; no separate <a href="v.stream.network">v.stream.network</a> run is
+required &mdash; ready for the graph tools in <em>rivernetworkx</em>.
+
 <h3>method=slope_area (colluvial-to-fluvial transition)</h3>
 
 In log&ndash;log slope&ndash;area space, hillslopes (and colluvial hollows) have a
@@ -112,6 +124,12 @@ inflow.
 # DrEICH morphological channel heads (needs only the DEM)
 r.fluvial.channelheads method=lsdtt elevation=dem output=channel_heads \
     threshold=100 a_0=1000 m_over_n=0.525 window_radius=7
+
+# ...and also emit the downstream fluvial network as a linked directed graph
+r.fluvial.channelheads method=lsdtt elevation=dem output=channel_heads \
+    network=channel_network threshold=100 window_radius=7
+# the 'tostream' column links each segment to its downstream segment (0 = exits map)
+v.db.select map=channel_network columns=cat,tostream
 
 # Colluvial-to-fluvial transition from the slope-area break
 r.watershed -s elevation=dem accumulation=accum drainage=draindir

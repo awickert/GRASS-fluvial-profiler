@@ -8,6 +8,14 @@ and this project aims to follow [Semantic Versioning](https://semver.org/).
 ## [Unreleased]
 
 ### Added
+- **`r.fluvial.channelheads` gains a `network=` output (`method=lsdtt`)**: in
+  addition to the channel-head points, emit the **downstream fluvial network**
+  (channel heads and everything below) as vector lines in **v.stream.network
+  format** &mdash; each link carries `x1,y1,x2,y2` endpoints and a `tostream` cat
+  (0 = exits the map), so the result is a ready-to-use converging directed graph
+  with no separate `v.stream.network` run needed. Backed by
+  `rivernetworkx.channel_network_segments`, which traces the D8 network from the
+  heads and splits it into links at confluences.
 - **`r.fluvial.channelheads` gains `method=lsdtt`**: **DrEICH morphological channel
   heads** (Clubb et al., 2014), a faithful Python/numpy port of the LSDTopoTools
   chi&ndash;elevation pipeline &mdash; depression fill, D8 routing, second-order
