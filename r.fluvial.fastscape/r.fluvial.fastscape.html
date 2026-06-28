@@ -33,11 +33,27 @@ rasters may be supplied with <b>k_map</b> and <b>uplift_map</b>.
 At steady state the model reproduces the classic channel slope&ndash;area
 relation <em>S&nbsp;=&nbsp;(U/K)<sup>1/n</sup>&nbsp;A<sup>-m/n</sup></em>.
 
+<p>
+With the optional <b>direction</b> output the module also writes the D8
+flow-direction raster of the evolved landscape, in the
+<a href="r.watershed"><em>r.watershed</em></a> encoding (1&ndash;8 counter-clockwise
+from NE; 0 = pit/outlet). This is the canonical FastScape/LSDFlowInfo routing and
+can be fed straight into <a href="r.fluvial.channelheads">
+<em>r.fluvial.channelheads</em></a>'s <b>direction</b> input or to
+<a href="r.stream.distance"><em>r.stream.distance</em></a>, keeping routing
+internally consistent across the toolkit.
+
 <h2>EXAMPLE</h2>
 
 <div class="code"><pre>
 r.fluvial.fastscape input=dem output=dem_evolved \
     k=1e-5 m=0.5 n=1 uplift=1e-3 dt=1000 nsteps=200
+
+# ...also emit the routing, then use it for channel-head extraction
+r.fluvial.fastscape input=dem output=dem_evolved direction=draindir \
+    k=1e-5 m=0.5 n=1 uplift=1e-3 dt=1000 nsteps=200
+r.fluvial.channelheads method=dreich elevation=dem_evolved direction=draindir \
+    points=heads
 </pre></div>
 
 <h2>REFERENCES</h2>

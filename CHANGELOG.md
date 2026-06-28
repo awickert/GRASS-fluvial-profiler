@@ -38,8 +38,13 @@ and this project aims to follow [Semantic Versioning](https://semver.org/).
   detachment-limited stream-power incision (`dz/dt = U - K A^m S^n`) with the
   implicit, unconditionally stable FastScape algorithm (Braun & Willett, 2013).
   Reuses the Braun & Willett D8 flow-routing machinery shared with the DrEICH port.
+  An optional `direction=` output writes the D8 routing of the evolved landscape
+  (r.watershed encoding), the canonical FastScape/LSDFlowInfo routing &mdash; feed
+  it straight into `r.fluvial.channelheads direction=` or `r.stream.distance` to
+  keep routing internally consistent across the toolkit.
 - **`rivernetworkx`** gains `dreich` (`extract_channel_heads`,
-  `channel_network_segments`, `build_flowinfo_from_directions`, `fill`,
+  `channel_network_segments`, `build_flowinfo_from_directions`,
+  `directions_from_flowinfo`, `fill`,
   `tangential_curvature`) and `fastscape` (`evolve`), plus gscript-only raster I/O
   helpers `read_raster_gs` / `read_raster_int_gs` / `write_raster_gs` (via
   `r.out.bin` / `r.in.bin`, so modules run in headless `grass --exec` sessions
