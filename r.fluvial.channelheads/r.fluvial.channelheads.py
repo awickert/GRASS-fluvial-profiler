@@ -78,6 +78,13 @@
 #%  required: yes
 #%end
 
+#%option G_OPT_V_OUTPUT
+#%  key: network
+#%  label: Output fluvial network (vector lines, channel heads and everything downstream) [method=lsdtt]
+#%  description: Linked stream network in v.stream.network format (cat, x1, y1, x2, y2, tostream; tostream=0 = exits map), so it is a ready-to-use directed graph
+#%  required: no
+#%end
+
 #%option
 #%  key: window
 #%  type: double
@@ -205,6 +212,7 @@ def _run_lsdtt(options, flags):
 
     elevation = options['elevation']
     output = options['output']
+    network = options['network']
     z, region = read_raster_gs(elevation)
     nsres, ewres = region['nsres'], region['ewres']
     if abs(nsres - ewres) > 1e-6 * max(nsres, ewres):
@@ -215,14 +223,17 @@ def _run_lsdtt(options, flags):
     z = np.where(np.isfinite(z), z, nodata)
 
     gscript.message("DrEICH (lsdtt): filling, routing, curvature, valleys, chi-z split.")
-    heads = dreich.extract_channel_heads(
+    result = dreich.extract_channel_heads(
         z, nodata=nodata, cellsize=cellsize,
         threshold=int(options['threshold']), min_slope=float(options['min_slope']),
         A_0=float(options['a_0']), m_over_n=float(options['m_over_n']),
         n_connecting_nodes=int(options['n_connecting_nodes']),
         min_segment_length=int(options['min_segment_length']),
         window_radius=float(options['window_radius']),
-        tan_curv_threshold=float(options['tan_curv_threshold']))
+        tan_curv_threshold=float(options['tan_curv_threshold']),
+        return_flowinfo=bool(network))
+    # extract_channel_heads returns (heads, flowinfo) only when network is wanted.
+    heads, fi = result if network else (result, None)
     if not heads:
         gscript.fatal("No channel heads found; check the DEM, threshold, or "
                       "curvature parameters.")
@@ -244,6 +255,58 @@ def _run_lsdtt(options, flags):
     finally:
         os.remove(tmp.name)
     gscript.message("Wrote %d channel-head points to vector <%s>." % (len(heads), output))
+
+    if network:
+        from rivernetworkx import dreich as _dreich
+        segments = _dreich.channel_network_segments(fi, heads)
+        _write_network(segments, network, west, north, ewres, nsres)
+        gscript.message("Wrote fluvial network (%d links) to vector <%s>."
+                        % (len(segments), network))
+
+
+def _write_network(segments, network, west, north, ewres, nsres):
+    """Write the DrEICH channel network as a vector line map in v.stream.network
+    format: cat, upstream/downstream endpoints (x1,y1,x2,y2) and the cat of the
+    single downstream link (tostream; 0 = exits the map). The result is a
+    ready-to-use converging directed graph -- no v.stream.network run needed --
+    and is also schema-compatible with it.
+
+    Built without pygrass (headless-safe): GRASS ASCII 'standard' line primitives
+    via v.in.ascii, then the attribute table via db.execute + v.db.connect."""
+    def xy(row, col):
+        return west + (col + 0.5) * ewres, north - (row + 0.5) * nsres
+
+    ascii_tmp = tempfile.NamedTemporaryFile(mode='w', suffix='.txt', delete=False)
+    sql_tmp = tempfile.NamedTemporaryFile(mode='w', suffix='.sql', delete=False)
+    try:
+        sql_tmp.write("CREATE TABLE %s (cat INTEGER, x1 DOUBLE PRECISION, "
+                      "y1 DOUBLE PRECISION, x2 DOUBLE PRECISION, "
+                      "y2 DOUBLE PRECISION, tostream INTEGER);\n" % network)
+        for seg in segments:
+            cells = seg['cells']
+            pts = [xy(r, c) for r, c in cells]
+            # GRASS ASCII standard line primitive: type, n_points, n_cats; the
+            # vertices; then one 'layer cat' line.
+            ascii_tmp.write("L %d 1\n" % len(pts))
+            for x, y in pts:
+                ascii_tmp.write(" %.6f %.6f\n" % (x, y))
+            ascii_tmp.write(" 1 %d\n" % seg['cat'])
+            x1, y1 = pts[0]
+            x2, y2 = pts[-1]
+            sql_tmp.write("INSERT INTO %s VALUES (%d, %.6f, %.6f, %.6f, %.6f, %d);\n"
+                          % (network, seg['cat'], x1, y1, x2, y2, seg['tostream']))
+        ascii_tmp.close()
+        sql_tmp.close()
+        gscript.run_command('v.in.ascii', flags='n', input=ascii_tmp.name,
+                            output=network, format='standard',
+                            overwrite=gscript.overwrite(), quiet=True)
+        gscript.run_command('db.connect', flags='c', quiet=True)
+        gscript.run_command('db.execute', input=sql_tmp.name)
+        gscript.run_command('v.db.connect', map=network, table=network,
+                            key='cat', layer=1, quiet=True)
+    finally:
+        os.remove(ascii_tmp.name)
+        os.remove(sql_tmp.name)
 
 
 def _run_slope_area(options, flags):
