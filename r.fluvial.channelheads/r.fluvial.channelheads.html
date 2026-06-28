@@ -31,16 +31,33 @@ The algorithm lives in <em>rivernetworkx.dreich</em>; the GRASS module is a thin
 wrapper.
 
 <p>
-With the optional <b>network</b> output the module also emits the <b>fluvial
-network</b> &mdash; the channel heads and everything downstream of them &mdash; as
-vector lines. The D8 network is traced from each head to its outlet and split
-into links at confluences, in
+<b>Routing.</b> By default the D8 flow routing is computed internally with the
+same FastScape-style algorithm that <a href="r.fluvial.fastscape">
+<em>r.fluvial.fastscape</em></a> uses (the canonical DrEICH pathway). You may
+instead supply an external drainage-direction raster with <b>direction</b> (the
+<a href="r.watershed"><em>r.watershed</em></a> encoding: 1&ndash;8 counter-clockwise
+from NE, negative off-region). <em>r.watershed -s</em> (single-flow-direction,
+steepest descent) reproduces the internal routing closely; the default
+multiple-flow-direction mode does not, so use <b>-s</b> if you route with
+<em>r.watershed</em>. Tangential curvature is always computed internally on the
+filled DEM (it cannot be supplied externally without changing the result).
+
+<p>
+<b>Outputs.</b> Any combination of three may be requested (at least one is
+required): channel-head points (<b>output</b>); the <b>fluvial network</b>
+&mdash; the channel heads and everything downstream of them &mdash; as vector
+lines (<b>network</b>); and/or that same network as a raster stream map
+(<b>network_raster</b>). The vector network traces the D8 flow from each head to
+its outlet and splits it into links at confluences, in
 <a href="v.stream.network">v.stream.network</a> format: every link carries its
 upstream/downstream endpoints (<tt>x1,y1,x2,y2</tt>) and the category of the
 single downstream link (<tt>tostream</tt>, with <tt>0</tt> marking a link that
 exits the map). The result is therefore already a converging directed graph
 &mdash; no separate <a href="v.stream.network">v.stream.network</a> run is
-required &mdash; ready for the graph tools in <em>rivernetworkx</em>.
+required &mdash; ready for the graph tools in <em>rivernetworkx</em>. The raster
+form is a <tt>CELL</tt> map whose cell values are the link categories (matching
+the vector network), <tt>NULL</tt> off the network, for downstream GRASS modules
+that consume a stream raster.
 
 <h3>method=slope_area (colluvial-to-fluvial transition)</h3>
 
@@ -125,11 +142,17 @@ inflow.
 r.fluvial.channelheads method=dreich elevation=dem output=channel_heads \
     threshold=100 a_0=1000 m_over_n=0.525 window_radius=7
 
-# ...and also emit the downstream fluvial network as a linked directed graph
+# ...and also emit the downstream fluvial network, as vector lines and a raster
 r.fluvial.channelheads method=dreich elevation=dem output=channel_heads \
-    network=channel_network threshold=100 window_radius=7
+    network=channel_network network_raster=channel_network_rast \
+    threshold=100 window_radius=7
 # the 'tostream' column links each segment to its downstream segment (0 = exits map)
 v.db.select map=channel_network columns=cat,tostream
+
+# Route with r.watershed instead of the internal D8 (use -s for steepest descent)
+r.watershed -s elevation=dem drainage=draindir
+r.fluvial.channelheads method=dreich elevation=dem direction=draindir \
+    network=channel_network threshold=100 window_radius=7
 
 # Colluvial-to-fluvial transition from the slope-area break
 r.watershed -s elevation=dem accumulation=accum drainage=draindir

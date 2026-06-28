@@ -8,14 +8,22 @@ and this project aims to follow [Semantic Versioning](https://semver.org/).
 ## [Unreleased]
 
 ### Added
-- **`r.fluvial.channelheads` gains a `network=` output (`method=dreich`)**: in
-  addition to the channel-head points, emit the **downstream fluvial network**
-  (channel heads and everything below) as vector lines in **v.stream.network
-  format** &mdash; each link carries `x1,y1,x2,y2` endpoints and a `tostream` cat
-  (0 = exits the map), so the result is a ready-to-use converging directed graph
-  with no separate `v.stream.network` run needed. Backed by
+- **`r.fluvial.channelheads` `method=dreich` gains network outputs**: alongside
+  the channel-head points (`output`, now optional), emit the **downstream fluvial
+  network** (channel heads and everything below) as vector lines (`network=`) in
+  **v.stream.network format** &mdash; each link carries `x1,y1,x2,y2` endpoints
+  and a `tostream` cat (0 = exits the map), a ready-to-use converging directed
+  graph with no separate `v.stream.network` run &mdash; and/or as a `CELL` raster
+  stream map (`network_raster=`, cell value = link cat, NULL off-network) for
+  downstream GRASS modules. At least one output is required. Backed by
   `rivernetworkx.channel_network_segments`, which traces the D8 network from the
   heads and splits it into links at confluences.
+- **`r.fluvial.channelheads` `method=dreich` accepts external routing**: an
+  optional `direction=` drainage-direction raster (r.watershed encoding) supplies
+  the D8 routing from another module instead of the internal steepest descent.
+  `r.watershed -s` and `r.fluvial.fastscape` are near-canonical sources
+  (`r.watershed -s` reproduces the internal heads closely; the default
+  multiple-flow-direction mode does not). Tangential curvature stays internal.
 - **`r.fluvial.channelheads` gains `method=dreich`**: **DrEICH morphological channel
   heads** (Clubb et al., 2014), a faithful Python/numpy port of the LSDTopoTools
   chi&ndash;elevation pipeline &mdash; depression fill, D8 routing, second-order
@@ -30,11 +38,13 @@ and this project aims to follow [Semantic Versioning](https://semver.org/).
   detachment-limited stream-power incision (`dz/dt = U - K A^m S^n`) with the
   implicit, unconditionally stable FastScape algorithm (Braun & Willett, 2013).
   Reuses the Braun & Willett D8 flow-routing machinery shared with the DrEICH port.
-- **`rivernetworkx`** gains `dreich` (`extract_channel_heads`, `fill`,
+- **`rivernetworkx`** gains `dreich` (`extract_channel_heads`,
+  `channel_network_segments`, `build_flowinfo_from_directions`, `fill`,
   `tangential_curvature`) and `fastscape` (`evolve`), plus gscript-only raster I/O
-  helpers `read_raster_gs` / `write_raster_gs` (via `r.out.bin` / `r.in.bin`, so
-  modules run in headless `grass --exec` sessions where pygrass cannot load its
-  shared libraries).
+  helpers `read_raster_gs` / `read_raster_int_gs` / `write_raster_gs` (via
+  `r.out.bin` / `r.in.bin`, so modules run in headless `grass --exec` sessions
+  where pygrass cannot load its shared libraries; `read_raster_int_gs` reads CELL
+  maps such as a drainage-direction raster).
 - **`r.fluvial.channelheads`**: a new module that maps the **colluvial-to-fluvial
   transition** (the downslope limit of colluvial hollows) from the
   slope&ndash;area break. It reads a deliberately over-extracted
