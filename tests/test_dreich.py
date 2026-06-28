@@ -223,6 +223,21 @@ def _encode_directions(fi):
     return dirgrid
 
 
+def test_directions_from_flowinfo_round_trips():
+    # encode a FlowInfo's routing to an r.watershed direction raster, decode it
+    # back, and confirm the receivers match (the encoder is the decoder's inverse).
+    nr, nc = 40, 40
+    z = (np.arange(nr)[:, None] * -0.5 + 100.0) * np.ones((1, nc))
+    z = (z - np.exp(-((np.arange(nc)[None, :] - nc / 2) ** 2) / 8.0) * 3.0).astype(np.float32)
+    fi = D.build_flowinfo(z, nodata=-9999.0, cellsize=1.0)
+    direction = D.directions_from_flowinfo(fi)
+    assert direction.shape == z.shape
+    assert direction.max() <= 8 and set(np.unique(direction)) <= set(range(-1, 9))
+    fi2 = D.build_flowinfo_from_directions(direction, z, nodata=-9999.0, cellsize=1.0)
+    assert np.array_equal(fi2['recv'], fi['recv'])
+    assert np.array_equal(fi2['flc'], fi['flc'])
+
+
 def test_build_flowinfo_from_directions_round_trips():
     # a tilted plane with an incised valley -> a real D8 network
     nr, nc = 40, 40
