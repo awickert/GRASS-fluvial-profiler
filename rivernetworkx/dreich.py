@@ -46,6 +46,9 @@ _OFF = [(-1, 0), (-1, 1), (0, 1), (1, 1), (1, 0), (1, -1), (0, -1), (-1, -1)]
 _RWS_DROW = np.array([0, -1, -1, -1, 0, 1, 1, 1, 0])
 _RWS_DCOL = np.array([0, 1, 0, -1, -1, -1, 0, 1, 1])
 _RWS_CARDINAL = frozenset({2, 4, 6, 8})
+# inverse: (drow, dcol) -> r.watershed code (for encoding receivers to directions)
+_RWS_CODE = {(-1, 1): 1, (-1, 0): 2, (-1, -1): 3, (0, -1): 4,
+             (1, -1): 5, (1, 0): 6, (1, 1): 7, (0, 1): 8}
 
 
 # ---------------------------------------------------------------- depression fill
@@ -233,6 +236,27 @@ def build_flowinfo_from_directions(direction, dem, nodata=-9999.0, cellsize=1.0)
                 col_of=cc.astype(np.int64), recv=recv, flc=flc, ndon=ndon,
                 delta=delta, donorstack=donorstack,
                 baselevel=np.where(recv == np.arange(N))[0])
+
+
+def directions_from_flowinfo(fi):
+    """Encode FlowInfo receivers as an r.watershed drainage-direction raster
+    (1..8 CCW from NE; 0 = baselevel/outlet). Inverse of
+    :func:`build_flowinfo_from_directions` -- for emitting a routing raster
+    (e.g. ``r.fluvial.fastscape direction=``) that ``r.fluvial.channelheads
+    direction=`` or ``r.stream.distance`` can consume.
+
+    Returns an int32 (nr, nc) array: 1..8 where flow leaves the cell, 0 at base
+    levels, and -1 at non-node (no-data) cells (use -1 as the raster NULL value)."""
+    nr, nc = fi['nr'], fi['nc']
+    row, col, recv = fi['row_of'], fi['col_of'], fi['recv']
+    dr = row[recv] - row
+    dc = col[recv] - col
+    codes = np.zeros(fi['N'], dtype=np.int32)        # 0 = baselevel (recv == self)
+    for (ddr, ddc), cd in _RWS_CODE.items():
+        codes[(dr == ddr) & (dc == ddc)] = cd
+    out = np.full((nr, nc), -1, dtype=np.int32)      # -1 = no-data / NULL
+    out[row, col] = codes
+    return out
 
 
 def contributing_area(fi):
