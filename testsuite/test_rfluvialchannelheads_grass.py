@@ -65,5 +65,35 @@ class TestFluvialHollow(TestCase):
                               output='transition_bad', window=0, min_slope=1e-9)
 
 
+class TestChannelHeadsLSDTT(TestCase):
+    """method=lsdtt (DrEICH): a fastscape-evolved landscape -> chi-z channel heads.
+    Uses r.fluvial.fastscape to build coherent terrain (also a cross-module check)."""
+
+    @classmethod
+    def setUpClass(cls):
+        cls.use_temp_region()
+        cls.runModule('g.region', n=1000, s=0, e=1000, w=0, res=10)
+        cls.runModule('r.mapcalc', seed=3, expression='rough = rand(0.0, 2.0)',
+                      overwrite=True)
+        cls.runModule('r.fluvial.fastscape', input='rough', output='dem',
+                      k=3e-5, m=0.45, n=1.0, uplift=3e-3, dt=1500.0, nsteps=250,
+                      overwrite=True)
+
+    @classmethod
+    def tearDownClass(cls):
+        cls.runModule('g.remove', flags='f', type='raster', name='rough,dem')
+        cls.runModule('g.remove', flags='f', type='vector', name='heads')
+        cls.del_temp_region()
+
+    def test_finds_dreich_heads(self):
+        self.assertModule('r.fluvial.channelheads', method='lsdtt', elevation='dem',
+                          output='heads', threshold=15, window_radius=30,
+                          tan_curv_threshold=0.005, min_segment_length=5,
+                          overwrite=True)
+        self.assertVectorExists('heads')
+        topo = gscript.vector_info_topo('heads')
+        self.assertGreater(int(topo['points']), 2)        # several channel heads
+
+
 if __name__ == '__main__':
     test()

@@ -34,36 +34,47 @@
 # this transition, within the colluvial hollow.
 
 #%module
-#% description: Map the colluvial-to-fluvial (hollow) transition from the slope-area break
+#% description: Map channel heads / the colluvial-to-fluvial transition (DrEICH or slope-area break)
 #% keyword: raster
 #% keyword: stream network
 #% keyword: hydrology
 #% keyword: geomorphology
+#% keyword: channel head
 #% keyword: hollow
+#%end
+
+#%option
+#%  key: method
+#%  type: string
+#%  label: Channel-head method
+#%  description: lsdtt = DrEICH chi-z morphological channel heads (Clubb et al. 2014); slope_area = colluvial-to-fluvial (hollow) transition from the slope-area break
+#%  options: slope_area,lsdtt
+#%  answer: slope_area
+#%  required: yes
 #%end
 
 #%option G_OPT_R_INPUT
 #%  key: elevation
-#%  label: Elevation (DEM) sampled along the network
+#%  label: Elevation (DEM)
 #%  required: yes
 #%end
 
 #%option G_OPT_R_INPUT
 #%  key: accumulation
-#%  label: Flow-accumulation raster (e.g. from r.watershed), covering the network
-#%  required: yes
+#%  label: Flow-accumulation raster (e.g. from r.watershed), covering the network [method=slope_area]
+#%  required: no
 #%end
 
 #%option G_OPT_V_INPUT
 #%  key: streams
-#%  label: Over-extracted stream network (r.stream.extract, small threshold)
+#%  label: Over-extracted stream network (r.stream.extract, small threshold) [method=slope_area]
 #%  description: Extract with a small threshold so it over-shoots upslope past the hollows
-#%  required: yes
+#%  required: no
 #%end
 
 #%option G_OPT_V_OUTPUT
 #%  key: output
-#%  label: Output colluvial-to-fluvial transition points (downslope limit of hollows)
+#%  label: Output channel-head points (lsdtt) or colluvial-to-fluvial transition points (slope_area)
 #%  required: yes
 #%end
 
@@ -106,6 +117,62 @@
 #%  description: Region contains the full basin: treat negative accumulation at hollow heads as a boundary artifact, not off-map inflow
 #%end
 
+#%option
+#%  key: threshold
+#%  type: integer
+#%  label: Source drainage-area threshold, cells [method=lsdtt]
+#%  answer: 100
+#%  required: no
+#%end
+
+#%option
+#%  key: a_0
+#%  type: double
+#%  label: Reference drainage area A_0 for chi [method=lsdtt]
+#%  answer: 1000
+#%  required: no
+#%end
+
+#%option
+#%  key: m_over_n
+#%  type: double
+#%  label: Concavity m/n for chi [method=lsdtt]
+#%  answer: 0.525
+#%  required: no
+#%end
+
+#%option
+#%  key: n_connecting_nodes
+#%  type: integer
+#%  label: Consecutive high-curvature nodes required to flag a valley [method=lsdtt]
+#%  answer: 10
+#%  required: no
+#%end
+
+#%option
+#%  key: min_segment_length
+#%  type: integer
+#%  label: Minimum chi-z segment length for the channel-head split [method=lsdtt]
+#%  answer: 10
+#%  required: no
+#%end
+
+#%option
+#%  key: window_radius
+#%  type: double
+#%  label: Polynomial-fit window radius (map units) for tangential curvature [method=lsdtt]
+#%  answer: 7
+#%  required: no
+#%end
+
+#%option
+#%  key: tan_curv_threshold
+#%  type: double
+#%  label: Tangential-curvature threshold that marks valley cells [method=lsdtt]
+#%  answer: 0.1
+#%  required: no
+#%end
+
 import os
 import tempfile
 
@@ -116,6 +183,71 @@ from grass import script as gscript
 
 def main():
     options, flags = gscript.parser()
+    try:
+        import rivernetworkx as rnx  # noqa: F401  (checked here for a clear message)
+    except ImportError:
+        gscript.fatal("r.fluvial.channelheads requires the 'rivernetworkx' package "
+                      "(pip install -e . in your GRASS Python environment).")
+    if options['method'] == 'lsdtt':
+        _run_lsdtt(options, flags)
+    else:
+        _run_slope_area(options, flags)
+
+
+def _run_lsdtt(options, flags):
+    """DrEICH chi-z morphological channel heads (Clubb et al., 2014), via the
+    faithful LSDTopoTools port in rivernetworkx.dreich. Needs only the DEM; fill,
+    flow routing, tangential curvature, valleys and the chi-z split are all
+    computed internally."""
+    import numpy as np
+    from rivernetworkx import dreich
+    from rivernetworkx.grass_io import read_raster_gs
+
+    elevation = options['elevation']
+    output = options['output']
+    z, region = read_raster_gs(elevation)
+    nsres, ewres = region['nsres'], region['ewres']
+    if abs(nsres - ewres) > 1e-6 * max(nsres, ewres):
+        gscript.warning("Non-square cells (nsres=%.6g, ewres=%.6g); DrEICH assumes "
+                        "square cells, using nsres." % (nsres, ewres))
+    cellsize = nsres
+    nodata = -9999.0
+    z = np.where(np.isfinite(z), z, nodata)
+
+    gscript.message("DrEICH (lsdtt): filling, routing, curvature, valleys, chi-z split.")
+    heads = dreich.extract_channel_heads(
+        z, nodata=nodata, cellsize=cellsize,
+        threshold=int(options['threshold']), min_slope=float(options['min_slope']),
+        A_0=float(options['a_0']), m_over_n=float(options['m_over_n']),
+        n_connecting_nodes=int(options['n_connecting_nodes']),
+        min_segment_length=int(options['min_segment_length']),
+        window_radius=float(options['window_radius']),
+        tan_curv_threshold=float(options['tan_curv_threshold']))
+    if not heads:
+        gscript.fatal("No channel heads found; check the DEM, threshold, or "
+                      "curvature parameters.")
+    gscript.message("Found %d DrEICH channel heads." % len(heads))
+
+    west, north = region['west'], region['north']
+    tmp = tempfile.NamedTemporaryFile(mode='w', suffix='.txt', delete=False)
+    try:
+        for row, col in heads:
+            x = west + (col + 0.5) * ewres
+            y = north - (row + 0.5) * nsres
+            tmp.write("%.6f|%.6f\n" % (x, y))
+        tmp.close()
+        gscript.run_command(
+            'v.in.ascii', input=tmp.name, output=output, format='point',
+            separator='pipe', x=1, y=2, cat=0,
+            columns="x double precision, y double precision",
+            overwrite=gscript.overwrite(), quiet=True)
+    finally:
+        os.remove(tmp.name)
+    gscript.message("Wrote %d channel-head points to vector <%s>." % (len(heads), output))
+
+
+def _run_slope_area(options, flags):
+    import rivernetworkx as rnx
     elevation = options['elevation']
     accumulation = options['accumulation']
     streams = options['streams']
@@ -125,11 +257,8 @@ def main():
     min_slope = float(options['min_slope'])
     max_area = float(options['max_area']) if options['max_area'] else None
 
-    try:
-        import rivernetworkx as rnx
-    except ImportError:
-        gscript.fatal("r.fluvial.channelheads requires the 'rivernetworkx' package "
-                      "(pip install -e . in your GRASS Python environment).")
+    if not accumulation or not streams:
+        gscript.fatal("method=slope_area requires both 'accumulation' and 'streams'.")
 
     # Read the over-extracted network with no topology requirement: the
     # slope-area break and the area-crossing placement are both per-segment and

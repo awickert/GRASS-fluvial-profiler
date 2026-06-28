@@ -1,17 +1,45 @@
 <h2>DESCRIPTION</h2>
 
-<em>r.fluvial.channelheads</em> maps the <b>colluvial-to-fluvial transition</b> &mdash;
-the downslope limit of <b>colluvial hollows</b> (the unchanneled,
-colluvium-mantled zero-order valleys at the head of the drainage network)
-&mdash; from the <b>slope&ndash;area break</b>. In log&ndash;log
-slope&ndash;area space, hillslopes (and colluvial hollows) have a slope that is
-roughly independent of drainage area, while fluvial channels are concave
-(<em>S</em> &asymp; <em>k</em>&nbsp;<em>A</em><sup>&minus;&theta;</sup>). The
-rollover between the two regimes marks where the landscape crosses from
+<em>r.fluvial.channelheads</em> locates the upstream limit of the channel network.
+It offers two <b>method</b>s, which find two distinct (but related) quantities:
+
+<ul>
+  <li><b>method=lsdtt</b> &mdash; <b>DrEICH morphological channel heads</b> (Clubb
+      et al., 2014), a faithful Python port of the LSDTopoTools chi&ndash;elevation
+      algorithm. Channel heads are the cells where the long profile becomes linear
+      in the integral coordinate <em>&chi;</em>, downstream of the persistently
+      non-linear hillslope. Needs only the DEM.</li>
+  <li><b>method=slope_area</b> (default) &mdash; the <b>colluvial-to-fluvial
+      transition</b>, the downslope limit of colluvial hollows, from the
+      <b>slope&ndash;area break</b>. This is a <em>process</em> boundary that lies
+      <em>downslope</em> of the DrEICH head.</li>
+</ul>
+
+<h3>method=lsdtt (DrEICH channel heads)</h3>
+
+On the depression-filled DEM the module: routes D8 flow and accumulates area;
+extracts an over-dense source set at a small area <b>threshold</b>; fits
+second-order-polynomial <b>tangential curvature</b> (<b>window_radius</b>) and
+walks downstream from each source, flagging a <b>valley</b> where the curvature
+stays above <b>tan_curv_threshold</b> for <b>n_connecting_nodes</b> connected
+cells; and for each valley builds the hilltop&rarr;junction <em>&chi;</em> profile
+(<b>a_0</b>, <b>m_over_n</b>) and splits it into an upslope hillslope and a
+downslope channel segment by a regression test (R<sup>2</sup> of the channel vs.
+Durbin&ndash;Watson of the hillslope, segments at least
+<b>min_segment_length</b> nodes). The furthest-upstream head per branch is kept.
+The algorithm lives in <em>rivernetworkx.dreich</em>; the GRASS module is a thin
+wrapper.
+
+<h3>method=slope_area (colluvial-to-fluvial transition)</h3>
+
+In log&ndash;log slope&ndash;area space, hillslopes (and colluvial hollows) have a
+slope that is roughly independent of drainage area, while fluvial channels are
+concave (<em>S</em> &asymp; <em>k</em>&nbsp;<em>A</em><sup>&minus;&theta;</sup>).
+The rollover between the two regimes marks where the landscape crosses from
 hillslope/colluvial to fluvial process dominance.
 
 <p>
-The module:
+This method:
 </p>
 <ol>
   <li>reads a deliberately <b>over-extracted</b> stream network (so it reaches
@@ -81,14 +109,16 @@ inflow.
 <h2>EXAMPLE</h2>
 
 <div class="code"><pre>
-# Flow routing and a deliberately dense (over-extracted) network
+# DrEICH morphological channel heads (needs only the DEM)
+r.fluvial.channelheads method=lsdtt elevation=dem output=channel_heads \
+    threshold=100 a_0=1000 m_over_n=0.525 window_radius=7
+
+# Colluvial-to-fluvial transition from the slope-area break
 r.watershed -s elevation=dem accumulation=accum drainage=draindir
 r.stream.extract elevation=dem accumulation=accum threshold=100 \
     stream_vector=streams_dense stream_raster=streams_rast
-
-# Colluvial-to-fluvial transition from the slope-area break
-r.fluvial.channelheads elevation=dem accumulation=accum streams=streams_dense \
-    output=hollow_transition window=30 min_slope=0.0001
+r.fluvial.channelheads method=slope_area elevation=dem accumulation=accum \
+    streams=streams_dense output=hollow_transition window=30 min_slope=0.0001
 </pre></div>
 
 <h2>REFERENCES</h2>
@@ -115,6 +145,7 @@ doi:10.1002/2013WR015167.
 <em>
 <a href="r.stream.extract">r.stream.extract</a>,
 <a href="r.watershed">r.watershed</a>,
+<a href="r.fluvial.fastscape">r.fluvial.fastscape</a>,
 <a href="v.stream.network">v.stream.network</a>,
 <a href="v.fluvial.profiler">v.fluvial.profiler</a>
 </em>

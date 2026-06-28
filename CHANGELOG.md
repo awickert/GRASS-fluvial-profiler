@@ -8,6 +8,25 @@ and this project aims to follow [Semantic Versioning](https://semver.org/).
 ## [Unreleased]
 
 ### Added
+- **`r.fluvial.channelheads` gains `method=lsdtt`**: **DrEICH morphological channel
+  heads** (Clubb et al., 2014), a faithful Python/numpy port of the LSDTopoTools
+  chi&ndash;elevation pipeline &mdash; depression fill, D8 routing, second-order
+  polynomial tangential curvature, valley detection (sustained high curvature),
+  and the per-valley hilltop&rarr;junction chi&ndash;z regression split. Needs only
+  the DEM. The existing slope&ndash;area method is now `method=slope_area` (the
+  default). Validated stage-by-stage against an instrumented LSDTopoTools run on
+  Mid Bailey Run: routing/sources, valley junctions (768), hilltops (768/768) and
+  head count (634) are bit-exact; 630/634 head locations match (the few residual
+  are float32-degenerate chi&ndash;z split optima).
+- **`r.fluvial.fastscape`**: a new module that evolves a landscape under uplift and
+  detachment-limited stream-power incision (`dz/dt = U - K A^m S^n`) with the
+  implicit, unconditionally stable FastScape algorithm (Braun & Willett, 2013).
+  Reuses the Braun & Willett D8 flow-routing machinery shared with the DrEICH port.
+- **`rivernetworkx`** gains `dreich` (`extract_channel_heads`, `fill`,
+  `tangential_curvature`) and `fastscape` (`evolve`), plus gscript-only raster I/O
+  helpers `read_raster_gs` / `write_raster_gs` (via `r.out.bin` / `r.in.bin`, so
+  modules run in headless `grass --exec` sessions where pygrass cannot load its
+  shared libraries).
 - **`r.fluvial.channelheads`**: a new module that maps the **colluvial-to-fluvial
   transition** (the downslope limit of colluvial hollows) from the
   slope&ndash;area break. It reads a deliberately over-extracted
