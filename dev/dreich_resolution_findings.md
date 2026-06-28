@@ -24,6 +24,32 @@ saved in GRASS mapset `MidBaileyRun/dreich_restest` as
 - **adapt2** — adapt threshold **+ relaxed connectivity**:
   `n_connecting_nodes=3`, `min_segment_length=5`, `threshold=50`.
 
+## Note: curvature is in spatial units, which is why "adaptive" is a choice
+
+The tangential curvature (`rivernetworkx.dreich.tangential_curvature`, faithful to
+LSDTopoTools) is computed in **spatial units, 1/length (1/m)** — the polyfit
+coordinates carry the cell size (`xk = (i-kr)*cellsize`), so the second
+derivatives are 1/m. Therefore `tan_curv_threshold = 0.1` is a **fixed physical
+threshold**, consistent across resolutions.
+
+Two consequences for reading this study:
+- The **std collapse to 0 heads beyond 1 m is a genuine physical signal loss**,
+  not a unit artifact: an averaged/coarser surface really has less curvature at
+  the 0.1 /m level (convergent fingertips smooth below the bar; the growing
+  `7*res` m window smooths further).
+- The **adapt / adapt2 threshold deliberately abandons that fixed physical bar**
+  and instead flags the top-X% most-convergent cells at each resolution (a
+  *relative* convergence criterion). So the coarse-resolution heads it recovers
+  rest on genuinely weaker curvature than the 1 m ones — not the same physical
+  feature class. The recovered counts (b, below) are bought by lowering the
+  physical threshold.
+
+So metric (b) "unavoidable loss" has two honest readings: under a fixed physical
+threshold the loss is near-total past 1 m; under the relative criterion it is the
+0.69 -> 0.06 curve below. (Units verified directly from the code; the "fixed-
+threshold loss is near-total" reading is inferred from the std sweep, not a
+separately controlled run.)
+
 ## Head counts and correctness vs the 1 m truth
 
 | res (m) | std | adapt | adapt2 | adapt2 recall | adapt2 precision | adapt2 med det→truth |
