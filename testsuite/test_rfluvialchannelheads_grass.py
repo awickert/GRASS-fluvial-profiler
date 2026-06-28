@@ -81,7 +81,7 @@ class TestChannelHeadsDrEICH(TestCase):
 
     @classmethod
     def tearDownClass(cls):
-        cls.runModule('g.remove', flags='f', type='raster', name='rough,dem')
+        cls.runModule('g.remove', flags='f', type='raster', name='rough,dem,dir,netr')
         cls.runModule('g.remove', flags='f', type='vector', name='heads,net')
         cls.del_temp_region()
 
@@ -116,6 +116,28 @@ class TestChannelHeadsDrEICH(TestCase):
         self.assertIn(0, tos)                             # at least one outlet
         for t in tos:
             self.assertTrue(t == 0 or t in cats)         # no dangling downstream link
+
+    def test_external_routing_and_raster_network(self):
+        # routing supplied externally (r.watershed -s), plus the raster network.
+        self.runModule('r.watershed', flags='s', elevation='dem', drainage='dir',
+                       overwrite=True)
+        self.assertModule('r.fluvial.channelheads', method='dreich', elevation='dem',
+                          direction='dir', network='net', network_raster='netr',
+                          threshold=15, window_radius=30, tan_curv_threshold=0.005,
+                          min_segment_length=5, overwrite=True)
+        # raster stream network is CELL, with link cats matching the vector.
+        self.assertRasterExists('netr')
+        info = gscript.raster_info('netr')
+        self.assertEqual(info['datatype'], 'CELL')
+        vcats = set(int(r) for r in gscript.read_command(
+            'v.db.select', map='net', columns='cat', flags='c').split())
+        self.assertEqual(int(info['max']), max(vcats))    # same cat range
+
+    def test_requires_at_least_one_output(self):
+        # method=dreich with no output target must fail, not silently do nothing.
+        self.assertModuleFail('r.fluvial.channelheads', method='dreich',
+                              elevation='dem', threshold=15, window_radius=30,
+                              tan_curv_threshold=0.005, min_segment_length=5)
 
 
 if __name__ == '__main__':
