@@ -5,10 +5,11 @@
 #
 # AUTHOR(S):    Andrew Wickert
 #
-# PURPOSE:      Evolve a landscape under rock uplift and detachment-limited
-#               stream-power river incision (dz/dt = U - K A^m S^n) using the
-#               implicit, unconditionally stable FastScape algorithm of
-#               Braun & Willett (2013).
+# PURPOSE:      D8 flow routing (depression fill, flow directions, accumulation)
+#               on a DEM and, optionally (nsteps>0), landscape evolution under
+#               rock uplift and detachment-limited stream-power incision
+#               (dz/dt = U - K A^m S^n) with the implicit, unconditionally stable
+#               FastScape algorithm of Braun & Willett (2013).
 #
 # COPYRIGHT:    (c) 2026 Andrew Wickert
 #
