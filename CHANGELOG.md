@@ -34,14 +34,20 @@ and this project aims to follow [Semantic Versioning](https://semver.org/).
   Mid Bailey Run: routing/sources, valley junctions (768), hilltops (768/768) and
   head count (634) are bit-exact; 630/634 head locations match (the few residual
   are float32-degenerate chi&ndash;z split optima).
-- **`r.fluvial.fastscape`**: a new module that evolves a landscape under uplift and
-  detachment-limited stream-power incision (`dz/dt = U - K A^m S^n`) with the
-  implicit, unconditionally stable FastScape algorithm (Braun & Willett, 2013).
-  Reuses the Braun & Willett D8 flow-routing machinery shared with the DrEICH port.
-  An optional `direction=` output writes the D8 routing of the evolved landscape
-  (r.watershed encoding), the canonical FastScape/LSDFlowInfo routing &mdash; feed
-  it straight into `r.fluvial.channelheads direction=` or `r.stream.distance` to
-  keep routing internally consistent across the toolkit.
+- **`r.fluvial.fastscape`**: a new module for **D8 flow routing** and optional
+  **landscape evolution**. By default (`nsteps=0`) it routes only &mdash;
+  depression fill, `direction=` (D8, r.watershed encoding), and `accumulation=`
+  (upstream cell count) &mdash; a fast O(n) drainage-routing solver (the
+  Braun & Willett ordered-stack machinery shared with the DrEICH port) usable as
+  a routing front-end to `r.fluvial.channelheads` alongside `r.watershed`,
+  `r.fill.dir`, and `r.richdem`. With `nsteps>0` it evolves the landscape under
+  uplift and detachment-limited stream-power incision (`dz/dt = U - K A^m S^n`)
+  with the implicit, unconditionally stable FastScape algorithm
+  (Braun & Willett, 2013), then routes the evolved surface. Outputs: `direction=`,
+  `accumulation=`, `filled=` (the depression-filled DEM), and the evolved
+  `output=` DEM; the routing is the canonical FastScape/LSDFlowInfo routing,
+  internally consistent with `r.fluvial.channelheads direction=` and
+  `r.stream.distance`.
 - **`rivernetworkx`** gains the **χ–z channel-head primitives** in `core`:
   `chi` (the integral channel coordinate of Perron & Royden, 2013),
   `channel_head_chi_split` (the DrEICH χ–z regression head-finder &mdash; splits a
