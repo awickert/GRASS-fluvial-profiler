@@ -5,7 +5,7 @@ All notable changes to this project are documented in this file.
 The format is based on [Keep a Changelog](https://keepachangelog.com/en/1.1.0/),
 and this project aims to follow [Semantic Versioning](https://semver.org/).
 
-## [Unreleased]
+## [0.4.0] - 2026-06-29
 
 ### Added
 - **`r.fluvial.channelheads` `method=dreich` gains network outputs**: alongside
@@ -212,6 +212,7 @@ The API is still pre-1.0 and may change.
 Initial tagged release (code from December 2016): early GRASS GIS modules for
 extracting and profiling river networks.
 
+[0.4.0]: https://github.com/awickert/r.fluvial/compare/v0.3.0...v0.4.0
 [0.3.0]: https://github.com/awickert/r.fluvial/compare/v0.2.0...v0.3.0
 [0.2.0]: https://github.com/awickert/r.fluvial/compare/v0.1.0...v0.2.0
 [0.1.0]: https://github.com/awickert/r.fluvial/releases/tag/v0.1.0

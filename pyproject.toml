@@ -4,7 +4,7 @@ build-backend = "setuptools.build_meta"
 
 [project]
 name = "rivernetworkx"
-version = "0.3.0"
+version = "0.4.0"
 description = "River-network construction, traversal, and I/O on NetworkX, for the GRASS fluvial toolkit"
 readme = "README.md"
 requires-python = ">=3.9"
