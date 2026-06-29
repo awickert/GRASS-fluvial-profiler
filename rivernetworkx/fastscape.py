@@ -197,7 +197,7 @@ def _erode_stack_varK(zn, fi, area, Kn, m, n, dt, fixed):
             zn[node] = z
 
 
-def steady_state_relief(K, m, n, uplift, area, slope_exponent_area=None):
+def steady_state_slope(K, m, n, uplift, area):
     """Analytic steady-state channel slope S = (U/K)^(1/n) * A^(-m/n) at a point
     (dz/dt = 0 in the stream-power model). Useful for sanity checks / initial
     guesses. ``area`` is drainage area in map units^2."""
