@@ -1,7 +1,18 @@
 """
 DrEICH channel-head extraction (Clubb et al., 2014), a faithful Python/numpy port
-of the LSDTopoTools pipeline used by ``channel_heads_driver`` (the standalone
-``dreich_algorithm`` repo).
+of the LSDTopoTools pipeline (Mudd et al., 2014, 2019) used by
+``channel_heads_driver`` (the standalone ``dreich_algorithm`` repo).
+
+References:
+    Clubb, F. J., S. M. Mudd, D. T. Milodowski, M. D. Hurst, and L. J. Slater
+        (2014), Objective extraction of channel heads from high-resolution
+        topographic data, Water Resour. Res., 50, 4283-4304, doi:10.1002/2013WR015167.
+    Mudd, S. M., M. Attal, D. T. Milodowski, S. W. D. Grieve, and D. A. Valters
+        (2014), A statistical framework to quantify spatial variation in channel
+        gradients using the integral method of channel profile analysis,
+        J. Geophys. Res. Earth Surf., 119, 138-152, doi:10.1002/2013JF002981.
+    Mudd, S. M., et al. (2019), LSDTopoTools2 [software], Zenodo,
+        doi:10.5281/zenodo.3245040.
 
 Pure numpy, GRASS-free. The GRASS module ``r.fluvial.channelheads`` (method
 ``dreich``) is a thin wrapper that reads a DEM, calls :func:`extract_channel_heads`,
@@ -98,8 +109,9 @@ def fill(dem, nodata=-9999.0, min_slope=0.0001, cellsize=1.0):
 
 # ------------------------------------------------------- tangential curvature
 def tangential_curvature(dem, nodata=-9999.0, cellsize=1.0, window_radius=7):
-    """2nd-order polynomial-fit tangential curvature on a (filled) DEM
-    (LSDRaster::calculate_polyfit_surface_metrics, raster_selection[6]).
+    """Tangential curvature from a 2nd-order polynomial surface fit on a (filled)
+    DEM (the Evans, 1980 / Zevenbergen & Thorne, 1987 polyfit method, as in
+    LSDRaster::calculate_polyfit_surface_metrics, raster_selection[6]).
     Vectorised: the constant normal-equation matrix makes each coefficient field a
     correlation of the DEM with a fixed kernel."""
     from scipy import ndimage

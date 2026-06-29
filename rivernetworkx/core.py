@@ -190,8 +190,9 @@ def downstream_path(G, node, outlet=OFFMAP):
 
 def strahler_order(G, outlet=OFFMAP):
     """
-    Strahler stream order per segment, on the segment DiGraph from
-    :func:`build_graph` (each node is a segment; edges point downstream).
+    Strahler stream order (Strahler, 1957, Eos Trans. AGU, 38, 913-920) per
+    segment, on the segment DiGraph from :func:`build_graph` (each node is a
+    segment; edges point downstream).
 
     A segment with no upstream tributaries is order 1; where tributaries meet, the
     order is the largest incoming order, incremented by one only when at least two
