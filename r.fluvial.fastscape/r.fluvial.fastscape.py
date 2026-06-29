@@ -226,20 +226,21 @@ def main():
     # as r.watershed-encoded routing consumable by r.fluvial.channelheads direction=.
     if direction or accumulation or filled_out:
         filled = dreich.fill(zf, nodata, min_slope, cellsize)
-        fi = dreich.build_flowinfo(filled, nodata, cellsize)
         if filled_out:
             fout = np.where(filled == np.float32(nodata), np.nan, filled).astype(np.float64)
             write_raster_gs(fout, filled_out, region, overwrite=gscript.overwrite())
             gscript.message("Wrote filled DEM to <%s>." % filled_out)
-        if direction:
-            _write_direction(dreich.directions_from_flowinfo(fi), direction, region)
-            gscript.message("Wrote D8 flow-direction raster to <%s>." % direction)
-        if accumulation:
-            dreich.contributing_area(fi)
-            acc = np.full(z.shape, np.nan)
-            acc[fi['row_of'], fi['col_of']] = fi['ncontrib'].astype(np.float64)
-            write_raster_gs(acc, accumulation, region, overwrite=gscript.overwrite())
-            gscript.message("Wrote flow-accumulation raster to <%s>." % accumulation)
+        if direction or accumulation:                      # FlowInfo only needed for these
+            fi = dreich.build_flowinfo(filled, nodata, cellsize)
+            if direction:
+                _write_direction(dreich.directions_from_flowinfo(fi), direction, region)
+                gscript.message("Wrote D8 flow-direction raster to <%s>." % direction)
+            if accumulation:
+                dreich.contributing_area(fi)
+                acc = np.full(z.shape, np.nan)
+                acc[fi['row_of'], fi['col_of']] = fi['ncontrib'].astype(np.float64)
+                write_raster_gs(acc, accumulation, region, overwrite=gscript.overwrite())
+                gscript.message("Wrote flow-accumulation raster to <%s>." % accumulation)
 
 
 def _write_direction(dirarr, name, region):
