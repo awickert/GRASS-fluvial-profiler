@@ -29,6 +29,9 @@
 #% description: D8 flow routing, with optional landscape evolution under stream-power incision (implicit FastScape; Braun & Willett 2013)
 #% keyword: raster
 #% keyword: hydrology
+#% keyword: flow direction
+#% keyword: flow accumulation
+#% keyword: drainage
 #% keyword: geomorphology
 #% keyword: landscape evolution
 #% keyword: fastscape
