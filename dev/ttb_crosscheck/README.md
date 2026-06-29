@@ -43,6 +43,29 @@ divide network at ~97 % precision / ~92 % interior recall, with first-order
 divides agreeing 94 %. The Topo-order *tail* diverges (it is +1 per junction, so
 small segmentation differences compound); low orders agree.
 
+## Routing is identical (the residual is construction, not routing)
+
+`routing_check.py` confirms TopoToolbox's `flowacc` on `FLOWobj(M)` equals
+dreich's `ncontrib` for **100 % of cells** (max|diff| = 0). Since `flowacc` is a
+strict function of the receiver tree, the routing is provably identical — the
+`M` hand-off works exactly. So the divide residual is purely the *construction
+algorithm*, not the flow routing.
+
+## What the residual is (`residual_analysis.py`)
+
+| set | edges | near a stream (≤1 cell) | order-1 |
+|-----|------:|---:|---:|
+| MISS (TopoToolbox has, I lack) | 1849 | **56 %** (median dist 0) | 66 % |
+| EXTRA (I have, TopoToolbox lacks) | 604 | 19 % (median dist 3.6) | 96 % |
+| SHARED (the ridge network) | 14342 | 9 % (median dist 7) | — |
+
+The recall gap is dominated by **near-stream** edges: my `stream=` trim *removes
+every channel-adjacent edge*, whereas `getdivide` *keeps* the basin perimeter and
+opens each loop only at its single **outlet**. So the trim is a simplification of
+`getdivide` that over-removes near-stream order-1 leaves; the per-link basins also
+add a few deep spurs (the precision gap). The ridge network — what matters for
+first-order valleys and channel heads — agrees.
+
 ## Reproduce
 
 ```bash
@@ -95,5 +118,7 @@ reports the **interior** separately as the fair test of the core construction.
 | `build_M.py`          | Python: DEM → dreich fill+route → sparse `M` (for FLOWobj) + my divides |
 | `run_divideobj.m`     | Octave: `FLOWobj(M)` → `STREAMobj` → `DIVIDEobj` → `divorder`, export |
 | `compare.py`          | Python: edge-set overlap + Topo-order agreement (overall + interior) |
+| `routing_check.py`    | Python: prove TopoToolbox `flowacc` == dreich `ncontrib` (routing identity) |
+| `residual_analysis.py`| Python: localize the residual by stream-distance + order |
 | `apply_octave_patches.sh` | make a TopoToolbox clone Octave-runnable |
 | `octave_shims/`       | `bwtraceboundary.m`, `verLessThan.m` |
