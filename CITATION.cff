@@ -13,8 +13,8 @@ authors:
 version: 0.3.0
 date-released: "2026-06-26"
 license: GPL-3.0-or-later
-repository-code: "https://github.com/awickert/GRASS-fluvial-profiler"
-url: "https://github.com/awickert/GRASS-fluvial-profiler"
+repository-code: "https://github.com/awickert/r.fluvial"
+url: "https://github.com/awickert/r.fluvial"
 # Concept DOI: always resolves to the latest version on Zenodo
 doi: "10.5281/zenodo.20848466"
 keywords:

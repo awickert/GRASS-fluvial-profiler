@@ -13,7 +13,7 @@ authors = [{name = "Andrew D. Wickert"}]
 dependencies = ["numpy", "networkx"]
 
 [project.urls]
-Homepage = "https://github.com/awickert/GRASS-fluvial-profiler"
+Homepage = "https://github.com/awickert/r.fluvial"
 
 [tool.setuptools]
 packages = ["rivernetworkx"]
