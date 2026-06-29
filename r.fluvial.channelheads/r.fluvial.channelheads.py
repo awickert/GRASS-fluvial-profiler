@@ -342,6 +342,10 @@ def _write_network(segments, network, west, north, ewres, nsres):
         gscript.run_command('v.in.ascii', flags='n', input=ascii_tmp.name,
                             output=network, format='standard',
                             overwrite=gscript.overwrite(), quiet=True)
+        # db.connect -c is "check, set if uninitialized": it establishes the
+        # default (SQLite) DB connection ONLY when the mapset has none, and never
+        # overwrites an existing connection. It is defensive init -- not a reset --
+        # so db.execute below always has a default DB to create the table in.
         gscript.run_command('db.connect', flags='c', quiet=True)
         gscript.run_command('db.execute', input=sql_tmp.name)
         gscript.run_command('v.db.connect', map=network, table=network,
