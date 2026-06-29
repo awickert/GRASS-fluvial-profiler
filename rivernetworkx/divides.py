@@ -25,7 +25,7 @@ lying on the shared boundary of two cells with different drainage-basin labels.
 import numpy as np
 
 
-def extract_divide_edges(lab, nodata=-1):
+def extract_divide_edges(lab, nodata=-1, stream=None):
     """Divide edges = pixel boundaries between cells of different basin label.
 
     Parameters
@@ -36,6 +36,13 @@ def extract_divide_edges(lab, nodata=-1):
     nodata : int
         Label value to treat as "no basin" (still divides against real basins,
         as a domain/off-map boundary).
+    stream : (nr, nc) bool ndarray, optional
+        Channel mask. When given, boundaries adjacent to a channel cell are
+        dropped, so divides terminate at the streams and do not run along them
+        (Scherler & Schwanghart: "divide segments do not cross any rivers but
+        their nodes may coincide with stream edges"). This opens each basin loop
+        at its outlet and removes stream-coincident (valley-running) boundaries --
+        the effect of their ``getdivide``.
 
     Returns
     -------
@@ -56,15 +63,19 @@ def extract_divide_edges(lab, nodata=-1):
     edges = []
     # vertical divide edges: boundary between cell (r,c) and (r,c+1), on the grid
     # line at column index c+1, from corner (r, c+1) to (r+1, c+1).
-    vdiff = lab[:, :-1] != lab[:, 1:]
-    vr, vc = np.where(vdiff)                 # cell rows/cols of the LEFT cell
+    vkeep = lab[:, :-1] != lab[:, 1:]
+    if stream is not None:
+        vkeep &= ~(stream[:, :-1] | stream[:, 1:])
+    vr, vc = np.where(vkeep)                 # cell rows/cols of the LEFT cell
     a = cid(vr, vc + 1); b = cid(vr + 1, vc + 1)
     edges.append(np.column_stack([a, b]))
 
     # horizontal divide edges: boundary between cell (r,c) and (r+1,c), on the
     # grid line at row index r+1, from corner (r+1, c) to (r+1, c+1).
-    hdiff = lab[:-1, :] != lab[1:, :]
-    hr, hc = np.where(hdiff)                 # cell rows/cols of the UPPER cell
+    hkeep = lab[:-1, :] != lab[1:, :]
+    if stream is not None:
+        hkeep &= ~(stream[:-1, :] | stream[1:, :])
+    hr, hc = np.where(hkeep)                 # cell rows/cols of the UPPER cell
     a = cid(hr + 1, hc); b = cid(hr + 1, hc + 1)
     edges.append(np.column_stack([a, b]))
 
