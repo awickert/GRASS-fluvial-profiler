@@ -5,9 +5,10 @@ evolves that landscape forward in time under rock uplift and detachment-limited
 fluvial incision.
 
 <p>
-By default (<b>nsteps=0</b>) it performs <b>flow routing only</b>: a
-depression-fill, the D8 flow-direction raster, and flow accumulation &mdash; a
-fast O(<em>n</em>) drainage-routing solver (the Braun &amp; Willett ordered-stack
+By default (<b>nsteps=0</b>) it performs <b>flow routing only</b> &mdash; any of a
+depression-fill, the D8 flow-direction raster, and flow accumulation (whichever
+outputs you request) &mdash; a fast O(<em>n</em>) drainage-routing solver (the
+Braun &amp; Willett ordered-stack
 machinery) usable as a routing front-end to
 <a href="r.fluvial.channelheads"><em>r.fluvial.channelheads</em></a>, alongside
 <a href="r.watershed"><em>r.watershed</em></a>, <em>r.fill.dir</em>, and
@@ -57,8 +58,12 @@ FastScape/LSDFlowInfo routing, which feeds straight into
 <b>direction</b> input or
 <a href="r.stream.distance"><em>r.stream.distance</em></a>, keeping routing
 internally consistent across the toolkit. <b>accumulation</b> is the number of
-upstream cells (as in <em>r.watershed</em>), and <b>filled</b> is the
-depression-filled DEM used for routing.
+upstream cells (like <em>r.watershed</em>'s accumulation, but always positive
+&mdash; edge-contaminated cells are not flagged negative), and <b>filled</b> is
+the depression-filled DEM used for routing. Note that <b>filled</b> is written at
+float32 precision, so <code>filled&nbsp;-&nbsp;input</code> may be very slightly
+negative (~10<sup>-5</sup>) at unmodified (non-pit) cells &mdash; a representation
+artifact, not a routing error.
 
 <h2>EXAMPLE</h2>
 

@@ -59,7 +59,7 @@
 
 #%option G_OPT_R_OUTPUT
 #%  key: accumulation
-#%  label: Output flow-accumulation raster (number of upstream cells, as in r.watershed)
+#%  label: Output flow-accumulation raster (number of upstream cells; always positive)
 #%  required: no
 #%end
 
