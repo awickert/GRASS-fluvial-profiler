@@ -82,6 +82,10 @@ and this project aims to follow [Semantic Versioning](https://semver.org/).
   (stream-network plumbing that composes with the `r.stream.*` ecosystem). The
   `r.`/`v.` prefixes follow data type. Breaking: the `v.stream.profiler` name no
   longer exists.
+- **Repository renamed `GRASS-fluvial-profiler` &rarr; `r.fluvial`.** The project
+  spans the whole `r.`/`v.fluvial` module family plus the `rivernetworkx` library,
+  so the repo now carries the family name. GitHub redirects the old URLs; the
+  `CITATION.cff`, `pyproject.toml`, and changelog links point at the new name.
 
 ### Fixed
 - **`v.stream.network`** no longer crashes on a real network that has both
