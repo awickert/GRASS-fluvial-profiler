@@ -72,5 +72,29 @@ def test_nonlinear_n_runs():
     assert np.all(np.isfinite(zf)) and zf.max() < 1e4
 
 
+def test_route_only_nsteps0_is_identity_and_routes():
+    # nsteps=0 evolves nothing: the returned surface is the input unchanged, so the
+    # routing computed from it describes the *input* DEM. This is the route-only mode
+    # that r.fluvial.fastscape exposes by default (nsteps=0), feeding direction= /
+    # accumulation= into r.fluvial.channelheads.
+    from rivernetworkx.dreich import fill, build_flowinfo, directions_from_flowinfo
+    z = np.array([[9, 8, 7, 6, 5],
+                  [8, 7, 6, 5, 4],
+                  [7, 6, 2, 4, 3],          # interior pit at (2,2)
+                  [6, 5, 4, 3, 2],
+                  [5, 4, 3, 2, 1]], dtype=np.float32)
+    zf = F.evolve(z, nodata=-9999.0, cellsize=10.0, nsteps=0)
+    assert np.array_equal(zf, z)                               # exact identity, no erosion
+
+    filled = fill(zf, -9999.0, 1e-4, 10.0)
+    assert filled[2, 2] > z[2, 2]                              # the pit is filled for routing
+    fi = build_flowinfo(filled, -9999.0, 10.0)
+    contributing_area(fi)
+    d = directions_from_flowinfo(fi)
+    assert d.shape == z.shape
+    assert set(np.unique(d)).issubset(set(range(0, 9)) | {-1})  # r.watershed encoding
+    assert fi['ncontrib'].max() == z.size                     # all cells drain to the outlet
+
+
 if __name__ == '__main__':
     raise SystemExit(pytest.main([__file__, '-v']))

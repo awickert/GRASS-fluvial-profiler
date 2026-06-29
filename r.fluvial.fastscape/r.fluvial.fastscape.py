@@ -25,7 +25,7 @@
 # ordered node stack, contributing area) shared with r.fluvial.channelheads.
 
 #%module
-#% description: Evolve a landscape under uplift and stream-power incision (implicit FastScape)
+#% description: D8 flow routing, with optional landscape evolution under stream-power incision (implicit FastScape; Braun & Willett 2013)
 #% keyword: raster
 #% keyword: hydrology
 #% keyword: geomorphology
@@ -41,14 +41,42 @@
 
 #%option G_OPT_R_OUTPUT
 #%  key: output
-#%  label: Output evolved elevation (DEM)
-#%  required: yes
+#%  label: Output evolved elevation (DEM); omit when only routing (nsteps=0)
+#%  required: no
 #%end
 
 #%option G_OPT_R_OUTPUT
 #%  key: direction
-#%  label: Output D8 flow-direction raster of the evolved landscape (r.watershed encoding)
+#%  label: Output D8 flow-direction raster (r.watershed encoding)
 #%  description: The canonical FastScape/LSDFlowInfo routing, for r.fluvial.channelheads direction= or r.stream.distance (1-8 CCW from NE; 0 = pit/outlet)
+#%  required: no
+#%end
+
+#%option G_OPT_R_OUTPUT
+#%  key: accumulation
+#%  label: Output flow-accumulation raster (number of upstream cells, as in r.watershed)
+#%  required: no
+#%end
+
+#%option G_OPT_R_OUTPUT
+#%  key: filled
+#%  label: Output depression-filled DEM used for routing
+#%  required: no
+#%end
+
+#%option
+#%  key: nsteps
+#%  type: integer
+#%  label: Number of evolution timesteps (0 = route only, no landscape evolution)
+#%  answer: 0
+#%  required: no
+#%end
+
+#%option
+#%  key: min_slope
+#%  type: double
+#%  label: Depression-fill minimum gradient used for flow routing
+#%  answer: 1e-4
 #%  required: no
 #%end
 
@@ -58,6 +86,7 @@
 #%  label: Stream-power erodibility coefficient K
 #%  answer: 1e-5
 #%  required: no
+#%  guisection: Landscape evolution
 #%end
 
 #%option
@@ -66,6 +95,7 @@
 #%  label: Drainage-area exponent m
 #%  answer: 0.5
 #%  required: no
+#%  guisection: Landscape evolution
 #%end
 
 #%option
@@ -74,6 +104,7 @@
 #%  label: Slope exponent n
 #%  answer: 1.0
 #%  required: no
+#%  guisection: Landscape evolution
 #%end
 
 #%option
@@ -82,18 +113,21 @@
 #%  label: Rock-uplift rate U (length / time), applied to the interior
 #%  answer: 1e-3
 #%  required: no
+#%  guisection: Landscape evolution
 #%end
 
 #%option G_OPT_R_INPUT
 #%  key: uplift_map
 #%  label: Spatially-variable uplift raster (overrides 'uplift' if given)
 #%  required: no
+#%  guisection: Landscape evolution
 #%end
 
 #%option G_OPT_R_INPUT
 #%  key: k_map
 #%  label: Spatially-variable erodibility raster (overrides 'k' if given)
 #%  required: no
+#%  guisection: Landscape evolution
 #%end
 
 #%option
@@ -102,27 +136,13 @@
 #%  label: Timestep (consistent time units with K and uplift)
 #%  answer: 1000.0
 #%  required: no
-#%end
-
-#%option
-#%  key: nsteps
-#%  type: integer
-#%  label: Number of timesteps
-#%  answer: 100
-#%  required: no
-#%end
-
-#%option
-#%  key: min_slope
-#%  type: double
-#%  label: Depression-fill minimum gradient used for flow routing each step
-#%  answer: 1e-4
-#%  required: no
+#%  guisection: Landscape evolution
 #%end
 
 #%flag
 #%  key: b
 #%  description: Do NOT fix the domain edges as base level (default fixes the four edges)
+#%  guisection: Landscape evolution
 #%end
 
 import numpy as np
@@ -134,6 +154,9 @@ def main():
     options, flags = gscript.parser()
     elevation = options['input']
     output = options['output']
+    direction = options['direction']
+    accumulation = options['accumulation']
+    filled_out = options['filled']
     K = float(options['k'])
     m = float(options['m'])
     n = float(options['n'])
@@ -142,8 +165,16 @@ def main():
     nsteps = int(options['nsteps'])
     min_slope = float(options['min_slope'])
 
+    if not (output or direction or accumulation or filled_out):
+        gscript.fatal("No output requested: set at least one of output=, "
+                      "direction=, accumulation=, filled=.")
+    if nsteps == 0 and output and not (direction or accumulation or filled_out):
+        gscript.warning("nsteps=0 (route only) with only output= just copies the "
+                        "input DEM; did you mean to request direction=/"
+                        "accumulation=/filled=, or set nsteps>0 to evolve?")
+
     try:
-        from rivernetworkx import fastscape
+        from rivernetworkx import fastscape, dreich
         from rivernetworkx.grass_io import read_raster_gs, write_raster_gs
     except ImportError:
         gscript.fatal("r.fluvial.fastscape requires the 'rivernetworkx' package "
@@ -170,26 +201,41 @@ def main():
 
     fixed = None if flags['b'] else 'edges'
 
-    gscript.message("FastScape: %d steps, dt=%g, K=%g, m=%g, n=%g, U=%g, cell=%g"
-                    % (nsteps, dt, K, m, n, uplift, cellsize))
+    if nsteps > 0:
+        gscript.message("FastScape: %d steps, dt=%g, K=%g, m=%g, n=%g, U=%g, cell=%g"
+                        % (nsteps, dt, K, m, n, uplift, cellsize))
+    else:
+        gscript.message("FastScape flow routing only (nsteps=0), cell=%g" % cellsize)
+    # nsteps=0 returns the input unchanged: the routing outputs then describe the
+    # input DEM (route-only); nsteps>0 routes the evolved landscape.
     zf = fastscape.evolve(z, nodata=nodata, cellsize=cellsize, K=Kp, m=m, n=n,
                           uplift=U, dt=dt, nsteps=nsteps, fixed_boundary=fixed,
                           min_slope=min_slope)
 
-    # write the evolved DEM back, mapping nodata -> NULL
-    zf_out = np.where(zf == np.float32(nodata), np.nan, zf).astype(np.float64)
-    write_raster_gs(zf_out, output, region, overwrite=gscript.overwrite())
-    gscript.message("Wrote evolved DEM to <%s> (relief %.2f)."
-                    % (output, float(np.nanmax(zf_out))))
+    if output:
+        zf_out = np.where(zf == np.float32(nodata), np.nan, zf).astype(np.float64)
+        write_raster_gs(zf_out, output, region, overwrite=gscript.overwrite())
+        what = "evolved DEM" if nsteps > 0 else "DEM unchanged (nsteps=0)"
+        gscript.message("Wrote %s to <%s>." % (what, output))
 
-    # optional: the D8 routing of the evolved landscape, as an r.watershed-encoded
-    # direction raster (consumable by r.fluvial.channelheads direction=).
-    if options['direction']:
-        from rivernetworkx import dreich
+    # Routing outputs from the final surface (== the input DEM when nsteps=0),
+    # as r.watershed-encoded routing consumable by r.fluvial.channelheads direction=.
+    if direction or accumulation or filled_out:
         filled = dreich.fill(zf, nodata, min_slope, cellsize)
         fi = dreich.build_flowinfo(filled, nodata, cellsize)
-        _write_direction(dreich.directions_from_flowinfo(fi), options['direction'], region)
-        gscript.message("Wrote D8 flow-direction raster to <%s>." % options['direction'])
+        if filled_out:
+            fout = np.where(filled == np.float32(nodata), np.nan, filled).astype(np.float64)
+            write_raster_gs(fout, filled_out, region, overwrite=gscript.overwrite())
+            gscript.message("Wrote filled DEM to <%s>." % filled_out)
+        if direction:
+            _write_direction(dreich.directions_from_flowinfo(fi), direction, region)
+            gscript.message("Wrote D8 flow-direction raster to <%s>." % direction)
+        if accumulation:
+            dreich.contributing_area(fi)
+            acc = np.full(z.shape, np.nan)
+            acc[fi['row_of'], fi['col_of']] = fi['ncontrib'].astype(np.float64)
+            write_raster_gs(acc, accumulation, region, overwrite=gscript.overwrite())
+            gscript.message("Wrote flow-accumulation raster to <%s>." % accumulation)
 
 
 def _write_direction(dirarr, name, region):
