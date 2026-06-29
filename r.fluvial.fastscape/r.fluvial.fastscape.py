@@ -40,9 +40,10 @@
 #%end
 
 #%option G_OPT_R_OUTPUT
-#%  key: output
-#%  label: Output evolved elevation (DEM); omit when only routing (nsteps=0)
+#%  key: evolved
+#%  label: Output evolved-elevation DEM (landscape evolution; requires nsteps>0)
 #%  required: no
+#%  guisection: Landscape evolution
 #%end
 
 #%option G_OPT_R_OUTPUT
@@ -153,7 +154,7 @@ from grass import script as gscript
 def main():
     options, flags = gscript.parser()
     elevation = options['input']
-    output = options['output']
+    evolved = options['evolved']
     direction = options['direction']
     accumulation = options['accumulation']
     filled_out = options['filled']
@@ -165,13 +166,12 @@ def main():
     nsteps = int(options['nsteps'])
     min_slope = float(options['min_slope'])
 
-    if not (output or direction or accumulation or filled_out):
-        gscript.fatal("No output requested: set at least one of output=, "
+    if not (evolved or direction or accumulation or filled_out):
+        gscript.fatal("No output requested: set at least one of evolved=, "
                       "direction=, accumulation=, filled=.")
-    if nsteps == 0 and output and not (direction or accumulation or filled_out):
-        gscript.warning("nsteps=0 (route only) with only output= just copies the "
-                        "input DEM; did you mean to request direction=/"
-                        "accumulation=/filled=, or set nsteps>0 to evolve?")
+    if evolved and nsteps == 0:
+        gscript.warning("evolved= requested with nsteps=0: no evolution occurs, so "
+                        "the output is just the input DEM. Set nsteps>0 to evolve.")
 
     try:
         from rivernetworkx import fastscape, dreich
@@ -212,11 +212,11 @@ def main():
                           uplift=U, dt=dt, nsteps=nsteps, fixed_boundary=fixed,
                           min_slope=min_slope)
 
-    if output:
+    if evolved:
         zf_out = np.where(zf == np.float32(nodata), np.nan, zf).astype(np.float64)
-        write_raster_gs(zf_out, output, region, overwrite=gscript.overwrite())
-        what = "evolved DEM" if nsteps > 0 else "DEM unchanged (nsteps=0)"
-        gscript.message("Wrote %s to <%s>." % (what, output))
+        write_raster_gs(zf_out, evolved, region, overwrite=gscript.overwrite())
+        what = "evolved DEM" if nsteps > 0 else "input DEM unchanged (nsteps=0)"
+        gscript.message("Wrote %s to <%s>." % (what, evolved))
 
     # Routing outputs from the final surface (== the input DEM when nsteps=0),
     # as r.watershed-encoded routing consumable by r.fluvial.channelheads direction=.

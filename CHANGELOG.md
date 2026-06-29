@@ -44,8 +44,8 @@ and this project aims to follow [Semantic Versioning](https://semver.org/).
   uplift and detachment-limited stream-power incision (`dz/dt = U - K A^m S^n`)
   with the implicit, unconditionally stable FastScape algorithm
   (Braun & Willett, 2013), then routes the evolved surface. Outputs: `direction=`,
-  `accumulation=`, `filled=` (the depression-filled DEM), and the evolved
-  `output=` DEM; the routing is the canonical FastScape/LSDFlowInfo routing,
+  `accumulation=`, `filled=` (the depression-filled DEM), and `evolved=` (the
+  evolved DEM); the routing is the canonical FastScape/LSDFlowInfo routing,
   internally consistent with `r.fluvial.channelheads direction=` and
   `r.stream.distance`.
 - **`rivernetworkx`** gains the **χ–z channel-head primitives** in `core`:

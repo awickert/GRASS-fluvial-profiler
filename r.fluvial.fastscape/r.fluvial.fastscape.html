@@ -69,7 +69,7 @@ r.fluvial.fastscape input=dem direction=draindir accumulation=accum
 r.fluvial.channelheads method=dreich elevation=dem direction=draindir points=heads
 
 # landscape evolution (nsteps &gt; 0), then route the evolved surface
-r.fluvial.fastscape input=dem output=dem_evolved direction=draindir \
+r.fluvial.fastscape input=dem evolved=dem_evolved direction=draindir \
     k=1e-5 m=0.5 n=1 uplift=1e-3 dt=1000 nsteps=200
 r.fluvial.channelheads method=dreich elevation=dem_evolved direction=draindir \
     points=heads
