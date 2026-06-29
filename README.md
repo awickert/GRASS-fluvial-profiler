@@ -1,4 +1,4 @@
-# GRASS-fluvial-profiler
+# r.fluvial: fluvial geomorphology tools for GRASS GIS
 
 [![DOI](https://zenodo.org/badge/DOI/10.5281/zenodo.20848466.svg)](https://doi.org/10.5281/zenodo.20848466)
 

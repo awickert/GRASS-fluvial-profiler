@@ -1,6 +1,6 @@
 cff-version: 1.2.0
 message: "If you use this software, please cite it as below."
-title: "GRASS-fluvial-profiler: fluvial geomorphology tools for GRASS GIS"
+title: "r.fluvial: fluvial geomorphology tools for GRASS GIS"
 abstract: >-
   A collection of GRASS GIS addon modules for fluvial geomorphology:
   river-network topology, NetworkX graph construction and export, river
