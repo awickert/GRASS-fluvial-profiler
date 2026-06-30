@@ -30,18 +30,19 @@ divides on the same basins.
 
 ## Result (Big Tujunga 30 m, 300×400 window, stream threshold 200 cells)
 
-| metric | all edges | interior (≥12 from edge) |
-|--------|----:|----:|
-| precision (my edges TopoToolbox also has) | 0.960 | **0.974** |
-| recall (TopoToolbox edges I reproduce)    | 0.886 | **0.920** |
-| Jaccard                                   | 0.854 | 0.899 |
-| first-order (order-1) divides matched     | **94 %** (6815/7247) | — |
-| Topo order on shared edges                | Pearson r = 0.745 (max 38 vs 25) | — |
+Opening each basin loop **at its outlet** (the faithful `getdivide`;
+`outlet_trim_experiment.py`) reproduces TopoToolbox's divide network:
 
-The edge-trim construction in `rivernetworkx.divides` reproduces TopoToolbox's
-divide network at ~97 % precision / ~92 % interior recall, with first-order
-divides agreeing 94 %. The Topo-order *tail* diverges (it is +1 per junction, so
-small segmentation differences compound); low orders agree.
+| construction | recall | precision | Jaccard | (interior, ≥12 from edge) |
+|--------------|----:|----:|----:|---|
+| all-channel trim (over-removes near-stream) | 0.886 | 0.960 | 0.854 | r 0.920 / p 0.974 |
+| **outlet-only trim (= getdivide)** | **0.943** | 0.953 | 0.902 | **r 0.984 / p 0.967 / J 0.952** |
+
+In the interior the outlet-trim matches TopoToolbox at **98.4 % recall / 96.7 %
+precision** — a faithful reproduction. The remaining boundary gap is the Octave
+shims + `outlets=false` + window clipping. The Topo-order *tail* still diverges
+(max 25 vs 38; it is +1 per junction, so segmentation differences compound) even
+though the edges agree — a separate, smaller item.
 
 ## Routing is identical (the residual is construction, not routing)
 
@@ -120,5 +121,6 @@ reports the **interior** separately as the fair test of the core construction.
 | `compare.py`          | Python: edge-set overlap + Topo-order agreement (overall + interior) |
 | `routing_check.py`    | Python: prove TopoToolbox `flowacc` == dreich `ncontrib` (routing identity) |
 | `residual_analysis.py`| Python: localize the residual by stream-distance + order |
+| `outlet_trim_experiment.py` | Python: outlet-only trim (= getdivide) vs all-channel trim, vs the reference |
 | `apply_octave_patches.sh` | make a TopoToolbox clone Octave-runnable |
 | `octave_shims/`       | `bwtraceboundary.m`, `verLessThan.m` |

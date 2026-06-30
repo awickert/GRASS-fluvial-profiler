@@ -37,12 +37,17 @@ def extract_divide_edges(lab, nodata=-1, stream=None):
         Label value to treat as "no basin" (still divides against real basins,
         as a domain/off-map boundary).
     stream : (nr, nc) bool ndarray, optional
-        Channel mask. When given, boundaries adjacent to a channel cell are
-        dropped, so divides terminate at the streams and do not run along them
-        (Scherler & Schwanghart: "divide segments do not cross any rivers but
-        their nodes may coincide with stream edges"). This opens each basin loop
-        at its outlet and removes stream-coincident (valley-running) boundaries --
-        the effect of their ``getdivide``.
+        Cells at which to open the divide loops -- boundaries adjacent to a True
+        cell are dropped, breaking each basin's boundary loop so the network is a
+        tree that orders cleanly. For the **faithful** Scherler & Schwanghart
+        ``getdivide`` (open each basin at its single outlet, keeping the rest of
+        the perimeter), pass the per-basin **outlet** cells (each channel link's
+        downstream-most cell). Cross-checked against TopoToolbox: outlet cells
+        reproduce its divide network to ~98% (interior); a full *channel* mask
+        also opens the loops but over-removes the near-stream perimeter that
+        ``getdivide`` keeps (~92% interior). Divides then terminate at streams and
+        do not run along them ("divide segments do not cross any rivers but their
+        nodes may coincide with stream edges").
 
     Returns
     -------
