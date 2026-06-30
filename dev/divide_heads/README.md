@@ -12,6 +12,33 @@ earlier divides→chi-z head validation
 `../divides_setup.py`), raw DEM `/tmp/dreich_algorithm/bailey_run_dem.flt`, and
 Clubb (2014)'s 53 field heads `/tmp/clubb_channel_heads.xlsx`.
 
+## The payoff: resolution robustness vs the FIELD heads (`robustness.py`)
+
+The method `r.fluvial.channelheads method=divides` (divide-defined valleys + chi-z)
+vs Clubb's field heads, in-hull (density-controlled), valley scale held physically
+constant, `min_segment_length` scaled to physical length:
+
+| res (m) | **divides** recall@50 | precision@50 | curvature recall@50 |
+|--:|--:|--:|--:|
+| 1  | 0.57 | 0.68 | 0.42 |
+| 2  | 0.57 | 0.62 | 0.11 |
+| 3  | 0.53 | 0.60 | **0.00** |
+| 5  | 0.55 | 0.56 | 0.00 |
+| 8  | 0.57 | 0.59 | 0.00 |
+| 12 | **0.57** | 0.67 | 0.00 |
+
+**The divide method recovers the field heads essentially as well at 12 m as at
+1 m (recall@50 flat ~0.57) — resolution-INVARIANT — while curvature-DrEICH is dead
+by 3 m, and divides beat curvature even at 1 m.** Both 1 m numbers reproduce the
+earlier independent in-hull computations, so the harness is sound. Self-consistency
+(coarse vs 1 m divide heads) holds at 0.92–0.96. (Caveat: this is *aggregated* 1 m
+MBR, an intrinsic-resolution test; real 12 m TanDEM-X adds acquisition effects and
+is the separate, north-star validation.) `figures/robustness.png`.
+
+This is the constructive capstone to the negative exploration below: divide
+*geometry* doesn't locate heads, but divide *structure* (the valleys) makes the
+chi-z head finder resolution-robust against ground truth.
+
 ## Bottom line (2026-06-30)
 
 **No divide-network feature we tried distinguishes channel heads from same-area
