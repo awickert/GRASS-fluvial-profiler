@@ -92,10 +92,14 @@ outputs (<b>points</b>, <b>network</b>, <b>raster_network</b>) behave exactly as
 <p>
 On the 1&nbsp;m Mid Bailey Run DEM, validated against Clubb et al. (2014)'s
 field-mapped heads: at matched head density the divide method meets the field
-heads at least as well as <b>method=dreich</b>, and it keeps producing
-field-plausible heads to 12&nbsp;m, where the curvature method yields essentially
-none. Use <b>method=dreich</b> for high-resolution faithfulness to the published
-algorithm; use <b>method=divides</b> for coarse or global DEMs.
+heads at least as well as <b>method=dreich</b>, and against those field heads it is
+<b>resolution-invariant to 20&nbsp;m</b> and <b>partially usable to ~30&nbsp;m</b>
+(SRTM), where the curvature method yields essentially none. At coarse resolution a
+small first-order valley would starve the chi&ndash;z split, so the profile is
+automatically extended downstream to the exact split minimum
+(<b>min_profile_nodes</b>); past ~40&nbsp;m the first-order valleys themselves are
+no longer resolved. Use <b>method=dreich</b> for high-resolution faithfulness to
+the published algorithm; use <b>method=divides</b> for coarse or global DEMs.
 
 <h3>method=slope_area (colluvial-to-fluvial transition)</h3>
 

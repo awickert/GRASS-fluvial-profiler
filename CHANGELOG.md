@@ -20,9 +20,15 @@ and this project aims to follow [Semantic Versioning](https://semver.org/).
   reused unchanged, so `threshold` is the **valley scale** (thousands of cells),
   not a fine source cut-off. Validated against Clubb et al. (2014)'s field heads
   on Mid Bailey Run: at matched head density it meets the field heads at least as
-  well as `method=dreich` and remains usable to 12&nbsp;m, where curvature yields
-  essentially nothing. Shares all of the `dreich` outputs
-  (`points` / `network` / `raster_network`). Backed by
+  well as `method=dreich`, and against the field heads it is **resolution-invariant
+  to 20&nbsp;m** (recall flat) and **partially usable to ~30&nbsp;m / SRTM**, where
+  curvature yields nothing. At coarse resolution a small first-order valley would
+  starve the chi-z split, so the chi-z profile is automatically extended downstream
+  to the exact split minimum (`min_profile_nodes`, default
+  `2*min_segment_length+1`) &mdash; a no-op at fine resolution, and deliberately
+  not one node further (more drags the head into the downstream trunk across a ksn
+  break). Shares all of the `dreich` outputs (`points` / `network` /
+  `raster_network`). Backed by
   `rivernetworkx.dreich.extract_channel_heads(valleys='divides')` /
   `first_order_valleys`.
 
