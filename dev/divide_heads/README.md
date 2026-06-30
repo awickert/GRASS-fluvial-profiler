@@ -14,48 +14,50 @@ Clubb (2014)'s 53 field heads `/tmp/clubb_channel_heads.xlsx`.
 
 ## The payoff: resolution robustness vs the FIELD heads (`robustness.py`)
 
-The method `r.fluvial.channelheads method=divides` (divide-defined valleys + chi-z)
-vs Clubb's field heads, in-hull (density-controlled), valley scale held physically
-constant, `min_segment_length` scaled to physical length:
+`r.fluvial.channelheads method=divides` (divide-defined valleys + chi-z) vs Clubb's
+field heads, in-hull (density-controlled), valley scale held physically constant,
+`min_segment_length` scaled to physical length, **with the coarse-resolution chi-z
+profile fix** (below):
 
-| res (m) | **divides** recall@50 | precision@50 | curvature recall@50 |
+| res (m) | cells/valley | **divides** recall@50 | curvature recall@50 |
 |--:|--:|--:|--:|
-| 1  | 0.57 | 0.68 | 0.42 |
-| 2  | 0.57 | 0.62 | 0.11 |
-| 3  | 0.53 | 0.60 | **0.00** |
-| 5  | 0.55 | 0.56 | 0.00 |
-| 8  | 0.57 | 0.59 | 0.00 |
-| 12 | **0.57** | 0.67 | 0.00 |
+| 1–20 | 100→5 | **0.57–0.58** (flat) | 0.42 @1 m, dead by 3 m |
+| **30** | 3.3 | **0.32** (was 0.04 without the fix) | 0.00 |
+| 40 | 2.5 | 0.06 | 0.00 |
+| 50–90 | ≤2 | 0.00 | 0.00 |
 
-**The divide method is resolution-INVARIANT against the field heads from 1 m to
-20 m (recall@50 flat ~0.57), then fails sharply at 30 m**, while curvature-DrEICH
-is dead by 3 m and divides beat curvature even at 1 m. Both 1 m numbers reproduce
-the earlier independent in-hull computations (harness sound); self-consistency
-holds 0.84–0.96 to 20 m.
+**The divide method is resolution-INVARIANT to 20 m (recall@50 ~0.57), holds
+partially to 30 m (~0.32) with the fix, and is gone by ~40–50 m** &mdash;
+curvature-DrEICH is dead by 3 m and divides beat it even at 1 m. The 1 m numbers
+reproduce the earlier independent computations (943 heads @T=10000, unchanged by
+the fix &mdash; no regression).
 
-**The 30 m failure point, and its mechanism (`robustness.py`, `srtm30.py`).** The
-two-panel figure shows the smoking gun: first-order valleys found and heads located
-track perfectly to 20 m, then **diverge at 30 m** &mdash; valleys stay resolved
-(~124) but only 39 yield heads. The failure is **chi-z profile starvation, not loss
-of valley structure**: the divides still resolve the valleys at 30 m, but a
-10000 m&sup2; valley is ~3 cells across, so the hilltop&rarr;source chi-z profile
-is ~3&ndash;5 nodes &mdash; too few for the hillslope/channel split. The criterion
-(Nyquist analog) is **~5 cells across a first-order valley**: at &le;20 m the
-natural valley scale gives that (full recall); at 30 m it does not (3.3 cells).
-Coarsening the valley scale at 30 m to ~5 cells/valley (T=20000) **partially
-recovers** (recall 0.19, precision 0.78) but the bigger valleys miss the finer
-field heads. So **30 m is a soft wall**: the ridge structure survives coarser than
-the chi-z can use it, and **extending the chi-z profile downstream** (as the
-original DrEICH does, vs the current short hilltop&rarr;source profile) would keep
-the fine valleys and feed the chi-z enough nodes &mdash; the clear next step toward
-SRTM 30 m. `figures/robustness.png`.
+**Failure mechanism & the fix (`robustness.py`, `srtm30.py`).** The 30 m collapse
+was **chi-z profile starvation, not loss of valley structure**: at 30 m a
+10000 m&sup2; valley is ~3 cells across, so the hilltop&rarr;source profile is
+~3&ndash;5 nodes &mdash; too few for the split. **Nyquist-like criterion: ~5 cells
+across a first-order valley** for full recall. The fix extends the chi-z profile
+downstream &mdash; but it works only at the **exact split minimum**
+(`2*min_segment_length+1` nodes): diagnosed by head drainage area, one node *more*
+drags the head **into the downstream trunk** across a ksn break (head area jumps
+6&rarr;33 at 30 m, 12&rarr;141 at 20 m). So `min_profile_nodes` auto-defaults to
+that minimum &mdash; a no-op at fine resolution, recovering 30 m to recall 0.32.
 
-(Caveat: this is *aggregated* 1 m MBR, an intrinsic-resolution test; real 12/30 m
-data adds acquisition effects and is the separate, north-star validation.)
+**Honest caveat on the "valleys found" count.** In `figures/robustness.png` the
+valley count *rises* to ~229 at 70 m &mdash; that is an **artifact**, not persistence:
+the valley-scale threshold `T = T_m&sup2;/res&sup2;` floors at 2 cells past ~50 m, so
+`get_sources` counts grid-scale noise, not physical first-order valleys. The clean
+gauge is **cells/valley = &radic;T_m&sup2; / res**: heads need ~5 (res &le; 20 m full,
+~3 at 30 m partial); the physical first-order valley (~100 m) is itself resolved only
+to ~2 cells (res &le; ~50 m). So the divides outlive the chi-z **modestly** (heads
+~30–40 m, structure ~50 m), **not** to 90 m.
+
+(Caveat: *aggregated* 1 m MBR, an intrinsic-resolution test; real 12/30 m data adds
+acquisition effects and is the separate, north-star validation.)
 
 This is the constructive capstone to the negative exploration below: divide
 *geometry* doesn't locate heads, but divide *structure* (the valleys) makes the
-chi-z head finder resolution-robust against ground truth.
+chi-z head finder resolution-robust to ~30 m against ground truth.
 
 ## Bottom line (2026-06-30)
 

@@ -79,8 +79,8 @@ def metrics(mxy, ref):
     return out, len(mh)
 
 
-RES = ([1, 12] if len(sys.argv) > 1 and sys.argv[1] == 'quick'
-       else [1, 2, 3, 5, 8, 12, 15, 20, 30])
+RES = ([1, 30] if len(sys.argv) > 1 and sys.argv[1] == 'quick'
+       else [1, 10, 20, 30, 40, 50, 60, 70, 80, 90])
 # first-order valley spacing on MBR ~235 m; print the resolution/valley-scale ratios
 print('clip %dx%d; %d Clubb heads (%d in hull); valley scale=%g m2 (~%.0f m wide)' % (
     z1.shape[0], z1.shape[1], len(clubb), len(clubb_in), T_M2, np.sqrt(T_M2)))
