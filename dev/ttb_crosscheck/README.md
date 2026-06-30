@@ -40,9 +40,25 @@ Opening each basin loop **at its outlet** (the faithful `getdivide`;
 
 In the interior the outlet-trim matches TopoToolbox at **98.4 % recall / 96.7 %
 precision** — a faithful reproduction. The remaining boundary gap is the Octave
-shims + `outlets=false` + window clipping. The Topo-order *tail* still diverges
-(max 25 vs 38; it is +1 per junction, so segmentation differences compound) even
-though the edges agree — a separate, smaller item.
+shims + `outlets=false` + window clipping.
+
+**Order schemes (`order_robustness.py`).** On the shared edges, every scheme has
+median |Δorder| = 0 (the *majority* of edges match exactly), but the *tail*
+divergence depends on the scheme's sensitivity to segmentation:
+
+| scheme | my max | TTB max | exact | within ±1 |
+|--------|---:|---:|---:|---:|
+| Topo     | 25 | 38 | 78 % | 88 % |
+| Strahler | 5  | 6  | 82 % | 95 % |
+| Shreve   | 123| 266| 72 % | 83 % |
+
+TopoToolbox segments the network more finely (its `divnet` dead-segment merging +
+break-insertion). **Strahler is robust** to this (only increments when equal
+orders meet → 5 vs 6); **Shreve is fragile** (additive → every extra segment
+counts → 2×); Topo is intermediate. So the *geometry* is reproduced and the
+*network* is robust; the deep-tail Topo/Shreve *values* are inherently
+segmentation-sensitive descriptors. Matching them exactly needs bit-identical
+segmentation; Strahler does not.
 
 ## Routing is identical (the residual is construction, not routing)
 
@@ -122,5 +138,6 @@ reports the **interior** separately as the fair test of the core construction.
 | `routing_check.py`    | Python: prove TopoToolbox `flowacc` == dreich `ncontrib` (routing identity) |
 | `residual_analysis.py`| Python: localize the residual by stream-distance + order |
 | `outlet_trim_experiment.py` | Python: outlet-only trim (= getdivide) vs all-channel trim, vs the reference |
+| `order_robustness.py` | Python: per-scheme order agreement -- Strahler robust, Shreve fragile |
 | `apply_octave_patches.sh` | make a TopoToolbox clone Octave-runnable |
 | `octave_shims/`       | `bwtraceboundary.m`, `verLessThan.m` |
