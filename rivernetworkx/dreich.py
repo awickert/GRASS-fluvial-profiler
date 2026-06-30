@@ -605,9 +605,18 @@ def _calculate_channel_head(nodeseq, chi, elev, min_segment_length):
 
 
 def channel_heads_from_valleys(fi, dem, valley, min_segment_length=10,
-                               A_0=1000.0, m_over_n=0.525):
+                               A_0=1000.0, m_over_n=0.525, min_profile_nodes=0):
     """GetChannelHeadsChiMethodFromValleys: per valley junction -> head, then
-    furthest-upstream dedup. Returns (heads_per_junction, final_heads) node lists."""
+    furthest-upstream dedup. Returns (heads_per_junction, final_heads) node lists.
+
+    ``min_profile_nodes`` (default 0 = off) extends the chi-z profile *downstream*
+    of the valley junction when the hilltop->junction span is shorter than this,
+    so the chi-z split has enough nodes. The channel is linear in chi all the way
+    down, so the extra downstream nodes anchor the channel-segment fit without
+    moving the (upslope) head. This matters only at coarse resolution, where a
+    small first-order valley would otherwise starve the split (the divide-based
+    method's path to coarse/global DEMs); at fine resolution the span already
+    exceeds the bound and nothing changes."""
     row_of = fi['row_of']; col_of = fi['col_of']; recv = fi['recv']
     JunctionVector = fi['JunctionVector']; ND = -9999
     nz = np.where(valley != ND)[0]
@@ -617,7 +626,22 @@ def channel_heads_from_valleys(fi, dem, valley, min_segment_length=10,
     for jn in junction_list:
         dn = int(JunctionVector[jn])
         hilltop = _find_farthest_upslope(fi, dn)
-        nodeseq, chi, elev = _build_channel_chi(fi, dem, hilltop, dn, A_0, m_over_n)
+        end_node = dn
+        if min_profile_nodes > 0:                          # extend downstream if starved
+            n_up = 1; cur = hilltop
+            while cur != dn:
+                nxt = int(recv[cur])
+                if nxt == cur:
+                    break
+                cur = nxt; n_up += 1
+            cur = dn
+            while n_up < min_profile_nodes:
+                nxt = int(recv[cur])
+                if nxt == cur:
+                    break
+                cur = nxt; n_up += 1
+            end_node = cur
+        nodeseq, chi, elev = _build_channel_chi(fi, dem, hilltop, end_node, A_0, m_over_n)
         heads_temp.append(_calculate_channel_head(nodeseq, chi, elev, min_segment_length))
     heads_temp = np.array(heads_temp, dtype=np.int64)
 
@@ -696,7 +720,7 @@ def extract_channel_heads(dem, nodata=-9999.0, cellsize=1.0, *, fill_dem=True,
                           threshold=100, min_slope=0.0001, A_0=1000.0, m_over_n=0.525,
                           n_connecting_nodes=10, min_segment_length=10,
                           window_radius=7, tan_curv_threshold=0.1, valleys='curvature',
-                          return_filled=False,
+                          min_profile_nodes=0, return_filled=False,
                           return_flowinfo=False, filled=None, curvature=None,
                           direction=None):
     """Extract chi-z (DrEICH) channel heads from a DEM array.
@@ -732,6 +756,14 @@ def extract_channel_heads(dem, nodata=-9999.0, cellsize=1.0, *, fill_dem=True,
         only for ``valleys='curvature'``.
     valleys : {'curvature', 'divides'}
         How the valleys are selected (see above).
+    min_profile_nodes : int
+        Minimum chi-z profile length (nodes). When the hilltop->valley profile is
+        shorter, it is extended downstream by just enough to reach this. For
+        ``valleys='divides'`` it defaults (0) to ``2*min_segment_length+1`` -- the
+        exact split minimum -- which recovers coarse/low-resolution DEMs (a small
+        first-order valley otherwise starves the chi-z split) without changing
+        fine-resolution results, and WITHOUT over-extending: one node past the
+        minimum drags the head downstream across a ksn break into the trunk.
     filled, curvature, direction : optional ndarrays
         Inject a pre-filled DEM, a curvature field, and/or an external D8
         drainage-direction raster (r.watershed encoding) to replace the
@@ -769,9 +801,16 @@ def extract_channel_heads(dem, nodata=-9999.0, cellsize=1.0, *, fill_dem=True,
         valley = find_valleys(fi, tcurv, sources, n_connecting_nodes, tan_curv_threshold)
     else:
         valley = first_order_valleys(fi, sources)
+        # divides: extend the chi-z profile to EXACTLY the split minimum when
+        # starved (coarse resolution), and no further -- one node more drags the
+        # head into the downstream trunk across a ksn break. No-op at fine
+        # resolution, where the hilltop->source span already exceeds this.
+        if min_profile_nodes == 0:
+            min_profile_nodes = 2 * min_segment_length + 1
     build_svector(fi)
     distance_from_outlet(fi)
-    _, final = channel_heads_from_valleys(fi, filled, valley, min_segment_length, A_0, m_over_n)
+    _, final = channel_heads_from_valleys(fi, filled, valley, min_segment_length,
+                                          A_0, m_over_n, min_profile_nodes)
     heads = [(int(fi['row_of'][n]), int(fi['col_of'][n])) for n in final]
     if not (return_filled or return_flowinfo):
         return heads
