@@ -125,6 +125,39 @@ def test_extract_runs_and_returns_cells():
         assert 0 <= r < nr and 0 <= c < nc
 
 
+def test_extract_valleys_divides_runs_without_curvature():
+    # the divide-based valley path: same incised valley, valleys='divides' should
+    # run (no curvature computed) and return in-bounds heads.
+    nr, nc = 60, 60
+    z = (np.arange(nr)[:, None] * -0.5 + 100.0) * np.ones((1, nc))
+    valley = np.exp(-((np.arange(nc)[None, :] - nc / 2) ** 2) / 8.0) * 3.0
+    z = (z - valley).astype(np.float32)
+    heads = D.extract_channel_heads(z, nodata=-9999.0, cellsize=1.0,
+                                    threshold=20, min_segment_length=5,
+                                    valleys='divides')
+    assert isinstance(heads, list)
+    for r, c in heads:
+        assert 0 <= r < nr and 0 <= c < nc
+    with pytest.raises(ValueError):
+        D.extract_channel_heads(z, nodata=-9999.0, cellsize=1.0, valleys='bogus')
+
+
+def test_first_order_valleys_tags_each_source():
+    # every source gets its junction tagged (no curvature gate).
+    nr, nc = 40, 40
+    z = (np.arange(nr)[:, None] * -0.5 + 100.0) * np.ones((1, nc))
+    valley = np.exp(-((np.arange(nc)[None, :] - nc / 2) ** 2) / 8.0) * 3.0
+    z = (z - valley).astype(np.float32)
+    fi = D.build_flowinfo(D.fill(z, -9999.0, 1e-4, 1.0), -9999.0, 1.0)
+    D.contributing_area(fi)
+    sources = D.get_sources(fi, 15)
+    D.junction_network(fi, sources)
+    val = D.first_order_valleys(fi, sources)
+    tagged = np.where(val != -9999)[0]
+    assert set(tagged.tolist()) == set(int(s) for s in sources)
+    assert np.all(val[tagged] == fi['JIdx'][tagged])
+
+
 def test_tangential_curvature_rejects_subcell_window():
     # window smaller than the cell excludes all neighbours -> a clear error,
     # not a cryptic singular-matrix LinAlgError.
