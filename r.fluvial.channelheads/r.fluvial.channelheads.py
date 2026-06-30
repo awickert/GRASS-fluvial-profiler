@@ -47,8 +47,8 @@
 #%  key: method
 #%  type: string
 #%  label: Channel-head method
-#%  description: dreich = DrEICH chi-z morphological channel heads (Clubb et al. 2014); slope_area = colluvial-to-fluvial (hollow) transition from the slope-area break
-#%  options: slope_area,dreich
+#%  description: dreich = DrEICH chi-z channel heads, curvature-selected valleys (Clubb et al. 2014); divides = DrEICH chi-z heads with divide-defined first-order valleys (resolution-robust; threshold is the valley scale); slope_area = colluvial-to-fluvial (hollow) transition from the slope-area break
+#%  options: slope_area,dreich,divides
 #%  answer: slope_area
 #%  required: yes
 #%end
@@ -209,32 +209,36 @@ def main():
     except ImportError:
         gscript.fatal("r.fluvial.channelheads requires the 'rivernetworkx' package "
                       "(pip install -e . in your GRASS Python environment).")
-    if options['method'] == 'dreich':
+    if options['method'] in ('dreich', 'divides'):
         _run_dreich(options, flags)
     else:
         _run_slope_area(options, flags)
 
 
 def _run_dreich(options, flags):
-    """DrEICH chi-z morphological channel heads (Clubb et al., 2014), via the
-    faithful LSDTopoTools port in rivernetworkx.dreich. Needs only the DEM: fill,
-    routing, tangential curvature, valleys and the chi-z split are all computed
-    internally. Routing defaults to the internal FastScape-style D8 (the
-    canonical DrEICH pathway) but can be supplied externally via direction=.
-    Emits any of: channel-head points (points), the downstream fluvial network as
-    vector lines (network) and/or as a raster stream map (raster_network)."""
+    """Chi-z (DrEICH) channel heads (Clubb et al., 2014) via the faithful
+    LSDTopoTools port in rivernetworkx.dreich. The chi-z head split is shared;
+    the valleys are selected either by sustained cross-valley curvature
+    (method=dreich, the faithful DrEICH) or by the drainage divides
+    (method=divides: every channel source is a first-order valley, robust to
+    coarsening, threshold = valley scale). Routing defaults to the internal
+    FastScape-style D8 but can be supplied externally via direction=. Emits any of:
+    channel-head points (points), the downstream fluvial network as vector lines
+    (network) and/or as a raster stream map (raster_network)."""
     import numpy as np
     from rivernetworkx import dreich
     from rivernetworkx.grass_io import read_raster_gs, read_raster_int_gs
 
+    method = options['method']
+    valleys = 'divides' if method == 'divides' else 'curvature'
     elevation = options['elevation']
     points = options['points']
     network = options['network']
     raster_network = options['raster_network']
     if not (points or network or raster_network):
-        gscript.fatal("method=dreich needs at least one output: 'points' "
+        gscript.fatal("method=%s needs at least one output: 'points' "
                       "(channel-head points), 'network' (vector stream network) "
-                      "and/or 'raster_network' (raster stream network).")
+                      "and/or 'raster_network' (raster stream network)." % method)
     want_fi = bool(network or raster_network)
 
     z, region = read_raster_gs(elevation)
@@ -258,9 +262,13 @@ def _run_dreich(options, flags):
         gscript.message("Routing from external direction raster <%s>."
                         % options['direction'])
 
-    gscript.message("DrEICH: filling, routing, curvature, valleys, chi-z split.")
+    if valleys == 'divides':
+        gscript.message("chi-z heads (divide-defined valleys): filling, routing, "
+                        "first-order valleys, chi-z split.")
+    else:
+        gscript.message("DrEICH: filling, routing, curvature, valleys, chi-z split.")
     result = dreich.extract_channel_heads(
-        z, nodata=nodata, cellsize=cellsize,
+        z, nodata=nodata, cellsize=cellsize, valleys=valleys,
         threshold=int(options['threshold']), min_slope=float(options['min_slope']),
         A_0=float(options['a_0']), m_over_n=float(options['m_over_n']),
         n_connecting_nodes=int(options['n_connecting_nodes']),
@@ -271,8 +279,8 @@ def _run_dreich(options, flags):
     heads, fi = (result if want_fi else (result, None))
     if not heads:
         gscript.fatal("No channel heads found; check the DEM, threshold, or "
-                      "curvature parameters.")
-    gscript.message("Found %d DrEICH channel heads." % len(heads))
+                      "%s parameters." % ('valley-scale' if valleys == 'divides' else 'curvature'))
+    gscript.message("Found %d channel heads (method=%s)." % (len(heads), method))
 
     west, north = region['west'], region['north']
 
