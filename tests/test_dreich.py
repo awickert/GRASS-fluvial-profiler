@@ -140,6 +140,11 @@ def test_extract_valleys_divides_runs_without_curvature():
         assert 0 <= r < nr and 0 <= c < nc
     with pytest.raises(ValueError):
         D.extract_channel_heads(z, nodata=-9999.0, cellsize=1.0, valleys='bogus')
+    # min_profile_nodes (coarse-resolution chi-z extension) is accepted
+    heads2 = D.extract_channel_heads(z, nodata=-9999.0, cellsize=1.0,
+                                     threshold=20, min_segment_length=5,
+                                     valleys='divides', min_profile_nodes=11)
+    assert isinstance(heads2, list)
 
 
 def test_first_order_valleys_tags_each_source():
