@@ -57,10 +57,13 @@ def run_method(dem, res, valleys):
     T = max(2, int(round((T_M2 if valleys == 'divides' else T_SRC_M2) / (res * res))))
     seg = max(3, int(round(SEG_M / res)))
     win = max(7.0, 1.6 * res)
-    heads = D.extract_channel_heads(dem, nodata=ND, cellsize=float(res),
-                                    valleys=valleys, threshold=T,
-                                    min_segment_length=seg, window_radius=win)
-    return heads_xy(heads, res), T
+    out = D.extract_channel_heads(dem, nodata=ND, cellsize=float(res),
+                                  valleys=valleys, threshold=T,
+                                  min_segment_length=seg, window_radius=win,
+                                  return_flowinfo=True)
+    heads, fi = out
+    nsrc = len(D.get_sources(fi, T)) if valleys == 'divides' else -1   # # first-order valleys
+    return heads_xy(heads, res), T, nsrc
 
 
 def metrics(mxy, ref):
@@ -76,37 +79,44 @@ def metrics(mxy, ref):
     return out, len(mh)
 
 
-RES = [1, 12] if len(sys.argv) > 1 and sys.argv[1] == 'quick' else [1, 2, 3, 5, 8, 12]
-print('clip %dx%d; %d Clubb heads (%d in hull); valley scale=%g m2' % (
-    z1.shape[0], z1.shape[1], len(clubb), len(clubb_in), T_M2))
-print('\n           vs FIELD heads (recall/prec, in-hull)        | self-consist')
-print('res Tcell |   DIVIDES @30   @50    | CURVATURE @30   @50 | div@50(vs 1m)')
+RES = ([1, 12] if len(sys.argv) > 1 and sys.argv[1] == 'quick'
+       else [1, 2, 3, 5, 8, 12, 15, 20, 30])
+# first-order valley spacing on MBR ~235 m; print the resolution/valley-scale ratios
+print('clip %dx%d; %d Clubb heads (%d in hull); valley scale=%g m2 (~%.0f m wide)' % (
+    z1.shape[0], z1.shape[1], len(clubb), len(clubb_in), T_M2, np.sqrt(T_M2)))
+print('\nres Tcell nVal nHd | DIV recall@30/50 prec@50 | CRV @50 | selfcon | cells/valley')
 heads1 = None
 rows = []
 for res in RES:
     agg = block_mean(z1, res) if res > 1 else z1
     dem = np.where(np.isfinite(agg), agg, ND).astype(np.float32)
-    dxy, T = run_method(dem, res, 'divides')
-    cxy, _ = run_method(dem, res, 'curvature')
+    dxy, T, nsrc = run_method(dem, res, 'divides')
+    cxy, _, _ = run_method(dem, res, 'curvature')
     dm, dn = metrics(dxy, clubb_in); cm, cn = metrics(cxy, clubb_in)
     if res == 1:
         heads1 = dxy[in_hull(dxy)]
     sc = metrics(dxy, heads1)[0][50.0][0] if heads1 is not None and len(heads1) else float('nan')
-    rows.append((res, dm, cm))
-    print('%3d %5d | %2d %.2f/%.2f %.2f/%.2f | %2d %.2f/%.2f %.2f/%.2f | %.2f'
-          % (res, T, dn, dm[30.0][0], dm[30.0][1], dm[50.0][0], dm[50.0][1],
-             cn, cm[30.0][0], cm[30.0][1], cm[50.0][0], cm[50.0][1], sc), flush=True)
+    rows.append((res, dm, cm, nsrc, len(dxy)))
+    # cells across a first-order valley (~sqrt(valley area) / res), a Nyquist gauge
+    cells_across = np.sqrt(T_M2) / res
+    print('%3d %5d %4d %3d | %.2f/%.2f %.2f | %.2f | %.2f | %.1f'
+          % (res, T, nsrc, len(dxy), dm[30.0][0], dm[50.0][0], dm[50.0][1],
+             cm[50.0][0], sc, cells_across), flush=True)
 
-# plot field-head recall vs resolution, divides vs curvature
+# two panels: field-head recall (top) and the failure mechanism (valley & head
+# counts, bottom) vs resolution
 import matplotlib; matplotlib.use('Agg'); import matplotlib.pyplot as plt
 import os
 rr = [x[0] for x in rows]
-fig, ax = plt.subplots(figsize=(7.5, 4.8))
+fig, (ax, ax2) = plt.subplots(2, 1, figsize=(7.5, 8), sharex=True)
 for t, ls in ((30.0, '-'), (50.0, '--')):
     ax.plot(rr, [x[1][t][0] for x in rows], 'o' + ls, color='C0', label='divides @%dm' % t)
     ax.plot(rr, [x[2][t][0] for x in rows], 's' + ls, color='C3', label='curvature @%dm' % t)
-ax.set_xlabel('DEM resolution (m)'); ax.set_ylabel('field-head recall (in hull)')
-ax.set_title('MBR: field-head recovery vs resolution (divides hold, curvature collapses)')
-ax.set_ylim(0, 1); ax.legend(fontsize=8)
+ax.set_ylabel('field-head recall (in hull)'); ax.set_ylim(0, 1); ax.legend(fontsize=8)
+ax.set_title('MBR: field-head recovery vs resolution')
+ax2.plot(rr, [x[3] for x in rows], 'o-', color='C2', label='first-order valleys found')
+ax2.plot(rr, [x[4] for x in rows], 's-', color='C4', label='divide heads (total)')
+ax2.set_xlabel('DEM resolution (m)'); ax2.set_ylabel('count'); ax2.legend(fontsize=8)
+ax2.set_title('Failure mechanism: valleys resolved vs heads located')
 out = os.path.join(os.path.dirname(os.path.abspath(__file__)), 'figures', 'robustness.png')
 fig.savefig(out, dpi=130, bbox_inches='tight'); print('saved', out)

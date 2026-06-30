@@ -27,13 +27,31 @@ constant, `min_segment_length` scaled to physical length:
 | 8  | 0.57 | 0.59 | 0.00 |
 | 12 | **0.57** | 0.67 | 0.00 |
 
-**The divide method recovers the field heads essentially as well at 12 m as at
-1 m (recall@50 flat ~0.57) — resolution-INVARIANT — while curvature-DrEICH is dead
-by 3 m, and divides beat curvature even at 1 m.** Both 1 m numbers reproduce the
-earlier independent in-hull computations, so the harness is sound. Self-consistency
-(coarse vs 1 m divide heads) holds at 0.92–0.96. (Caveat: this is *aggregated* 1 m
-MBR, an intrinsic-resolution test; real 12 m TanDEM-X adds acquisition effects and
-is the separate, north-star validation.) `figures/robustness.png`.
+**The divide method is resolution-INVARIANT against the field heads from 1 m to
+20 m (recall@50 flat ~0.57), then fails sharply at 30 m**, while curvature-DrEICH
+is dead by 3 m and divides beat curvature even at 1 m. Both 1 m numbers reproduce
+the earlier independent in-hull computations (harness sound); self-consistency
+holds 0.84–0.96 to 20 m.
+
+**The 30 m failure point, and its mechanism (`robustness.py`, `srtm30.py`).** The
+two-panel figure shows the smoking gun: first-order valleys found and heads located
+track perfectly to 20 m, then **diverge at 30 m** &mdash; valleys stay resolved
+(~124) but only 39 yield heads. The failure is **chi-z profile starvation, not loss
+of valley structure**: the divides still resolve the valleys at 30 m, but a
+10000 m&sup2; valley is ~3 cells across, so the hilltop&rarr;source chi-z profile
+is ~3&ndash;5 nodes &mdash; too few for the hillslope/channel split. The criterion
+(Nyquist analog) is **~5 cells across a first-order valley**: at &le;20 m the
+natural valley scale gives that (full recall); at 30 m it does not (3.3 cells).
+Coarsening the valley scale at 30 m to ~5 cells/valley (T=20000) **partially
+recovers** (recall 0.19, precision 0.78) but the bigger valleys miss the finer
+field heads. So **30 m is a soft wall**: the ridge structure survives coarser than
+the chi-z can use it, and **extending the chi-z profile downstream** (as the
+original DrEICH does, vs the current short hilltop&rarr;source profile) would keep
+the fine valleys and feed the chi-z enough nodes &mdash; the clear next step toward
+SRTM 30 m. `figures/robustness.png`.
+
+(Caveat: this is *aggregated* 1 m MBR, an intrinsic-resolution test; real 12/30 m
+data adds acquisition effects and is the separate, north-star validation.)
 
 This is the constructive capstone to the negative exploration below: divide
 *geometry* doesn't locate heads, but divide *structure* (the valleys) makes the
