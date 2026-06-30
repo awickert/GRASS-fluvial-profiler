@@ -1,14 +1,22 @@
 <h2>DESCRIPTION</h2>
 
 <em>r.fluvial.channelheads</em> locates the upstream limit of the channel network.
-It offers two <b>method</b>s, which find two distinct (but related) quantities:
+It offers three <b>method</b>s. Two locate chi&ndash;z channel heads, differing
+only in how they select the valleys to search; the third locates the related
+colluvial-to-fluvial transition:
 
 <ul>
   <li><b>method=dreich</b> &mdash; <b>DrEICH morphological channel heads</b> (Clubb
       et al., 2014), a faithful Python port of the LSDTopoTools chi&ndash;elevation
       algorithm. Channel heads are the cells where the long profile becomes linear
       in the integral coordinate <em>&chi;</em>, downstream of the persistently
-      non-linear hillslope. Needs only the DEM.</li>
+      non-linear hillslope. Valleys are selected by sustained cross-valley
+      curvature. Needs only the DEM.</li>
+  <li><b>method=divides</b> &mdash; the same chi&ndash;z channel heads, but the
+      first-order <b>valleys are defined by the drainage divides</b> rather than by
+      cross-valley curvature. Curvature is a second derivative of elevation and
+      collapses under coarsening; divides are basin boundaries and do not, so this
+      is the path to <b>coarse / global DEMs</b>. Needs only the DEM.</li>
   <li><b>method=slope_area</b> (default) &mdash; the <b>colluvial-to-fluvial
       transition</b>, the downslope limit of colluvial hollows, from the
       <b>slope&ndash;area break</b>. This is a <em>process</em> boundary that lies
@@ -58,6 +66,36 @@ required &mdash; ready for the graph tools in <em>rivernetworkx</em>. The raster
 form is a <tt>CELL</tt> map whose cell values are the link categories (matching
 the vector network), <tt>NULL</tt> off the network, for downstream GRASS modules
 that consume a stream raster.
+
+<h3>method=divides (divide-defined valleys + chi&ndash;z heads)</h3>
+
+This method keeps DrEICH's chi&ndash;z head split but replaces its valley-finding
+step. The DrEICH curvature gate (above) is the only resolution-fragile part of the
+algorithm: cross-valley tangential curvature is a second derivative of elevation,
+and the few-metre convergent valley-head fingertip it keys on smooths away under
+coarsening (curvature-selected heads degrade fast beyond ~10&nbsp;m). The
+<b>drainage divides</b> &mdash; the basin boundaries that wrap each first-order
+valley &mdash; are topological, not differential, and far more robust to
+coarsening.
+
+<p>
+Here every channel source is treated as a first-order valley (the dual of a
+divide-bounded first-order basin), and DrEICH's chi&ndash;z split locates the head
+within each. Because the curvature gate is gone, <b>threshold</b> is the
+<em>valley scale</em> (typically thousands of cells, the colluvial / first-order
+valley area), not a fine source cut-off &mdash; a coarser threshold gives fewer,
+larger valleys. The curvature parameters (<b>window_radius</b>,
+<b>tan_curv_threshold</b>, <b>n_connecting_nodes</b>) are unused. Routing and all
+outputs (<b>points</b>, <b>network</b>, <b>raster_network</b>) behave exactly as for
+<b>method=dreich</b>.
+
+<p>
+On the 1&nbsp;m Mid Bailey Run DEM, validated against Clubb et al. (2014)'s
+field-mapped heads: at matched head density the divide method meets the field
+heads at least as well as <b>method=dreich</b>, and it keeps producing
+field-plausible heads to 12&nbsp;m, where the curvature method yields essentially
+none. Use <b>method=dreich</b> for high-resolution faithfulness to the published
+algorithm; use <b>method=divides</b> for coarse or global DEMs.
 
 <h3>method=slope_area (colluvial-to-fluvial transition)</h3>
 
@@ -153,6 +191,11 @@ v.db.select map=channel_network columns=cat,tostream
 r.watershed -s elevation=dem drainage=draindir
 r.fluvial.channelheads method=dreich elevation=dem direction=draindir \
     network=channel_network threshold=100 window_radius=7
+
+# Divide-defined valleys + chi-z heads (robust on coarse/global DEMs);
+# here 'threshold' is the valley scale, not a fine source cut-off
+r.fluvial.channelheads method=divides elevation=dem points=channel_heads \
+    threshold=10000 a_0=1000 m_over_n=0.525
 
 # Colluvial-to-fluvial transition from the slope-area break
 r.watershed -s elevation=dem accumulation=accum drainage=draindir

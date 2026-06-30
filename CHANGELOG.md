@@ -5,6 +5,27 @@ All notable changes to this project are documented in this file.
 The format is based on [Keep a Changelog](https://keepachangelog.com/en/1.1.0/),
 and this project aims to follow [Semantic Versioning](https://semver.org/).
 
+## [Unreleased]
+
+### Added
+- **`r.fluvial.channelheads` gains `method=divides`**: chi-z (DrEICH) channel
+  heads whose **first-order valleys are defined by the drainage divides** rather
+  than by cross-valley curvature. Cross-valley tangential curvature &mdash; a
+  second derivative of elevation &mdash; collapses under coarsening (the
+  convergent valley-head fingertip smooths away beyond ~10&nbsp;m), so the
+  curvature-gated `method=dreich` does not transfer to coarse/global DEMs;
+  the divides are basin boundaries, robust to coarsening. Here every channel
+  source is a first-order valley (the dual of a divide-bounded first-order basin)
+  and DrEICH's chi-z split locates the head within each &mdash; the chi-z stage is
+  reused unchanged, so `threshold` is the **valley scale** (thousands of cells),
+  not a fine source cut-off. Validated against Clubb et al. (2014)'s field heads
+  on Mid Bailey Run: at matched head density it meets the field heads at least as
+  well as `method=dreich` and remains usable to 12&nbsp;m, where curvature yields
+  essentially nothing. Shares all of the `dreich` outputs
+  (`points` / `network` / `raster_network`). Backed by
+  `rivernetworkx.dreich.extract_channel_heads(valleys='divides')` /
+  `first_order_valleys`.
+
 ## [0.4.0] - 2026-06-29
 
 ### Added
