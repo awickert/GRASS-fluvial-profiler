@@ -487,6 +487,30 @@ def find_valleys(fi, tan_curv, sources, n_connecting_nodes=10, tan_curv_threshol
     return valley
 
 
+def first_order_valleys(fi, sources):
+    """Divide-based valley selection: every channel source is the head of a
+    first-order valley (the dual of a divide-bounded first-order basin), so each
+    source's junction is tagged as a valley junction -- no cross-valley curvature.
+
+    Drop-in replacement for :func:`find_valleys` in the divide-based channel-head
+    method (``extract_channel_heads(valleys='divides')``): the divides supply the
+    first-order valley *structure* (robust to coarsening), and DrEICH's chi-z stage
+    (:func:`channel_heads_from_valleys`) locates the head *within* each valley.
+    The ``threshold`` that defines the sources is therefore the **valley scale**,
+    not a fine source cut-off -- coarser threshold -> fewer, larger valleys.
+
+    Returns the same node-indexed ``valley`` array that ``find_valleys`` does, so
+    the downstream chi-z stage is reused unchanged. Requires :func:`junction_network`
+    to have been run (for ``JIdx``)."""
+    N = fi['N']; JIdx = fi['JIdx']; ND = -9999
+    valley = np.full(N, ND, dtype=np.int64)
+    for s in sources:
+        s = int(s)
+        if JIdx[s] != ND:
+            valley[s] = JIdx[s]
+    return valley
+
+
 # ----------------------------------------------------------- chi-z head finder
 def _find_farthest_upslope(fi, node):
     s = int(fi['SVectorIndex'][node]); n = int(fi['ncontrib'][node])
@@ -671,10 +695,23 @@ def drainage_divides(fi, threshold=100):
 def extract_channel_heads(dem, nodata=-9999.0, cellsize=1.0, *, fill_dem=True,
                           threshold=100, min_slope=0.0001, A_0=1000.0, m_over_n=0.525,
                           n_connecting_nodes=10, min_segment_length=10,
-                          window_radius=7, tan_curv_threshold=0.1, return_filled=False,
+                          window_radius=7, tan_curv_threshold=0.1, valleys='curvature',
+                          return_filled=False,
                           return_flowinfo=False, filled=None, curvature=None,
                           direction=None):
-    """Extract DrEICH channel heads from a DEM array.
+    """Extract chi-z (DrEICH) channel heads from a DEM array.
+
+    Two ways to identify the valleys whose heads are sought, both feeding the same
+    chi-z head stage (:func:`channel_heads_from_valleys`):
+
+    - ``valleys='curvature'`` (default) -- the faithful DrEICH (Clubb et al., 2014):
+      sustained cross-valley tangential curvature selects the valleys. Accurate at
+      high resolution but the convergent-curvature signal collapses under
+      coarsening (~>10 m).
+    - ``valleys='divides'`` -- the divides define the first-order valleys (every
+      channel source = one valley, via :func:`first_order_valleys`); robust to
+      coarsening. Here ``threshold`` is the **valley scale** (e.g. thousands of
+      cells), not a fine source cut-off, and no curvature is computed.
 
     Parameters
     ----------
@@ -686,10 +723,15 @@ def extract_channel_heads(dem, nodata=-9999.0, cellsize=1.0, *, fill_dem=True,
         If True, depression-fill the DEM first (LSDTT priority-flood). Set False if
         ``dem`` is already filled.
     threshold : int
-        Source drainage-area threshold (cells).
+        Drainage-area threshold (cells): the source cut-off for ``curvature``, the
+        valley scale for ``divides``.
     min_slope, A_0, m_over_n, n_connecting_nodes, min_segment_length,
     window_radius, tan_curv_threshold :
         DrEICH parameters (LSDTT defaults: 0.0001, 1000, 0.525, 10, 10, 7, 0.1).
+        ``n_connecting_nodes``/``window_radius``/``tan_curv_threshold`` are used
+        only for ``valleys='curvature'``.
+    valleys : {'curvature', 'divides'}
+        How the valleys are selected (see above).
     filled, curvature, direction : optional ndarrays
         Inject a pre-filled DEM, a curvature field, and/or an external D8
         drainage-direction raster (r.watershed encoding) to replace the
@@ -709,18 +751,24 @@ def extract_channel_heads(dem, nodata=-9999.0, cellsize=1.0, *, fill_dem=True,
     # module: ``direction`` is an external D8 drainage-direction raster
     # (r.watershed encoding) used instead of internal steepest descent. Curvature
     # is always faithful (still computed on the filled surface).
+    if valleys not in ('curvature', 'divides'):
+        raise ValueError("valleys must be 'curvature' or 'divides'")
     if filled is None:
         filled = fill(dem, nodata, min_slope, cellsize) if fill_dem else dem.astype(np.float32)
     else:
         filled = filled.astype(np.float32)
-    tcurv = curvature if curvature is not None else \
-        tangential_curvature(filled, nodata, cellsize, window_radius)
+    if valleys == 'curvature':
+        tcurv = curvature if curvature is not None else \
+            tangential_curvature(filled, nodata, cellsize, window_radius)
     fi = (build_flowinfo_from_directions(direction, filled, nodata, cellsize)
           if direction is not None else build_flowinfo(filled, nodata, cellsize))
     contributing_area(fi)
     sources = get_sources(fi, threshold)
     junction_network(fi, sources)
-    valley = find_valleys(fi, tcurv, sources, n_connecting_nodes, tan_curv_threshold)
+    if valleys == 'curvature':
+        valley = find_valleys(fi, tcurv, sources, n_connecting_nodes, tan_curv_threshold)
+    else:
+        valley = first_order_valleys(fi, sources)
     build_svector(fi)
     distance_from_outlet(fi)
     _, final = channel_heads_from_valleys(fi, filled, valley, min_segment_length, A_0, m_over_n)
