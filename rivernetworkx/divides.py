@@ -4,16 +4,24 @@
   Identification and ordering in digital elevation models. Earth Surf. Dynam. 8,
   245-259. https://doi.org/10.5194/esurf-8-245-2020
 
-A faithful, vectorised reimplementation of the parts we need: identify divides as
-the basin boundaries (on pixel EDGES, infinitesimal width) of a D8 stream
-network, build the divide network as a graph of segments between endpoints (at
-streams) and junctions, order it deterministically by peeling segments from the
-endpoints inward (Strahler / Shreve / Topo), and compute the per-divide relief
-metrics that flag unstable / noise divides.
+A faithful, vectorised reimplementation: identify divides as the basin boundaries
+(on pixel EDGES, infinitesimal width) of a D8 stream network, build the divide
+network as a graph of segments between endpoints (at streams) and junctions,
+resolve D8 diagonal-flow crossings (their ``divnet`` FX rule), open each basin
+loop at its outlet (their ``getdivide``; pass per-basin outlet cells to
+``extract_divide_edges(stream=)``), and order it by peeling segments from the
+endpoints inward (Strahler / Shreve / Topo) -- identical to their ``sort.m``.
 
-Built on the DrEICH FlowInfo (``rivernetworkx.dreich``): D8 receivers, per-link
-drainage basins, and flow distance. Not wired into the package exports yet --
-under active development.
+Built on the DrEICH FlowInfo (``rivernetworkx.dreich``): D8 receivers and
+per-link drainage basins.
+
+Status (June 2026): VERIFIED against the actual TopoToolbox ``DIVIDEobj``, run
+under Octave on identical routing -- reproduces its divide network to ~98 % of
+interior edges with Strahler order robustly matched (cross-check + reasoning in
+``dev/ttb_crosscheck/``). Not yet wired into the package exports. Still to do:
+per-divide relief metrics (HR / FD / DAI); then use the divides for channel
+heads. The Topo/Shreve order tails are intentionally not matched (segmentation-
+sensitive metrics; Strahler is the robust one).
 
 Conventions
 -----------

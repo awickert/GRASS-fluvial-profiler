@@ -33,6 +33,40 @@ GRASS), so the same network representation is reusable outside GRASS.
 
 Each module has its own GRASS HTML manual page in its directory.
 
+## In development: drainage-divide networks &rarr; channel heads
+
+Work toward extracting **channel heads from drainage divides** &mdash; a
+resolution-robust replacement for the cross-valley curvature used by DrEICH,
+aimed at coarse (e.g. global 12&nbsp;m) DEMs &mdash; lives in the
+[`rivernetworkx.divides`](rivernetworkx/divides.py) module and the
+[`dev/`](dev/) directory. It is **not yet wired into a GRASS module.**
+
+The divide-network construction is a faithful `numpy` reimplementation of the
+**Scherler &amp; Schwanghart (2020) drainage-divide networks** (TopoToolbox
+[`DIVIDEobj`](https://github.com/wschwanghart/topotoolbox)): divides on pixel
+edges between basins, the divide graph, D8 diagonal-crossing resolution, opening
+each basin loop at its outlet (their `getdivide`), and divide ordering
+(Strahler / Shreve / Topo).
+
+**Status (June 2026): reproduction complete and verified &mdash; stopping here by
+choice.** It was cross-checked against the *actual* TopoToolbox, run under Octave
+on **identical flow routing** (proven identical: TopoToolbox's flow accumulation
+equals ours for 100&nbsp;% of cells), and reproduces TopoToolbox's divide network
+at **~98&nbsp;% of interior edges**, with **Strahler order robustly matched**
+(max 5 vs 6). We deliberately did **not** chase the Topo/Shreve order *tails*:
+those are inherently segmentation-sensitive metrics (Shreve is additive), so
+matching them would require recreating TopoToolbox's exact segmentation with no
+scientific payoff &mdash; Strahler is the robust descriptor to build on. The full
+reproduction, cross-check harness, and reasoning are recorded in
+[`dev/ttb_crosscheck/`](dev/ttb_crosscheck/); the channel-head validation that
+motivates the whole effort (divides beat curvature against field-mapped heads and
+hold to 12&nbsp;m) is in
+[`dev/divides_heads_findings.md`](dev/divides_heads_findings.md).
+
+**Next:** per-divide relief metrics (HR/DAI), then use the reproduced divide
+network to locate first-order valleys and channel heads &mdash; modifying from
+this anchored, known-good baseline rather than from scratch.
+
 ## Dependencies
 
 - [GRASS GIS](https://grass.osgeo.org/) (a current release)
