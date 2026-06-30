@@ -45,6 +45,24 @@ transition.
 | `resolution_screen.py` | do any of these survive coarsening 1→12 m? | All null at all resolutions (the correctly-snapped reference). |
 | `debug_disc.py` | isolate the cache-filled vs raw-refilled discrepancy | Showed both give AUC ≈ 0.45 → the earlier 0.78 was the bug, not the DEM. |
 
+## What DOES locate heads (`physics_baseline.py`)
+
+The constructive counterpart. At Clubb's heads, across 1→12 m:
+
+| | 1 m | 12 m |
+|--|--:|--:|
+| drainage area AUC (heads vs random channel cells) | 0.74 | 0.75 — **resolution-stable** |
+| local slope AUC (heads vs same-area cells) | 0.62 | 0.43 — **dies by 12 m** |
+
+Area separates heads and survives coarsening; **slope adds a little at 1 m but is
+gone by 12 m** — a derivative, fragile exactly like cross-valley curvature. So the
+area–slope (Montgomery–Dietrich) threshold loses half its information at coarse
+resolution. This is *why* v2 is built from **area (robust scale) + chi-z (an
+integral transition, robust) + divide valley structure (robust)** — only
+resolution-stable ingredients, no fragile derivatives. (area control is restricted
+to head-scale area, so read its magnitude cautiously; the slope trend is the clean
+result.)
+
 ## The lesson
 
 Three independent tricks (ridge curvature; cross-divide area/order contrast;
