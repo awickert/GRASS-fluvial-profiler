@@ -12,6 +12,78 @@ earlier divides→chi-z head validation
 `../divides_setup.py`), raw DEM `/tmp/dreich_algorithm/bailey_run_dem.flt`, and
 Clubb (2014)'s 53 field heads `/tmp/clubb_channel_heads.xlsx`.
 
+## Process-domain workflow (current synthesis, 2026-07)
+
+The head hunt reframed: don't force one break onto Clubb's channel head — **map the
+three process domains** (hillslope → colluvial → fluvial; Montgomery & Dietrich) and
+their **two transitions + lateral input**, reporting offsets instead of errors. Each
+transition wants its *own* cue, and the cues' reliability is set by where the
+hillslope sits on the **threshold continuum** (Roering et al. 1999, 2007). The
+ordering below is deliberately **non-circular**: the valley head is found *first*
+from local curvature (needs no channel, no length), and everything else follows.
+
+```
+ z                                                       TRANSITIONS
+ ^  crest                                                -----------
+ |  /`--.__            HILLSLOPE                          (1) hillslope->colluvial
+ | /        `--.__     convex; S<S_c (low E*)                 = VALLEY HEAD  (V)
+ |/     (V)       `--._  or planar at S_c (high E*)           curvature: convex->
+ |      v             `--.__  COLLUVIAL                       convergent  [local:
+ | ......................   `-._ debris-flow; low S-A         channel-free, length-free]
+ |                    (C)      `-.__ concavity (theta~0)  (2) colluvial->fluvial
+ |                     v          `-.___                      = CHANNEL HEAD (C)
+ |                                     `-.__ FLUVIAL          incision onset; located
+ |                             (T)        `-.__ S~A^-theta    LAST; report as offset
+ |                              v            `-.___       (3) tributary = AREA STEP (T)
+ +--------------------------------------------------->        = lateral fluvial input
+      |<------- L_H ------->|          downstream dist
+      hillslope length = crest -> V  (NOT crest -> C: V is found first, by curvature)
+
+
+                             DEM
+                              |
+                     fill + flow routing
+                 (receivers, area A, flow distance)
+                              |
+        +---------------------+---------------------+
+        |                     |                     |
+    CURVATURE              SLOPE S(A)              AREA A
+     (local)                  |                 (monotonic)
+        |            [used later, weighted           |
+   ridge cells         by regime E*]             area STEPS
+   -> C_HT = E/K            (cue 2)          = tributary junctions (T)
+        |                                    = LATERAL INPUT; bound
+   convex->concave                            the clean reach   (cue 3)
+   = VALLEY HEAD (V)  <== ANCHOR: channel-free, length-free   (cue 1)
+        |
+   L_H = crest -> V
+        |
+   S_c : assume ~0.8 (tan 39 deg)   OR   calibrate via R*-E* collapse
+        |                                (R*=R/(S_c L_H); uses crest->V geometry,
+        |                                 same anchor -- NOT crest->channel)
+        v
+   E* = |C_HT| . L_H / S_c  =  L_H / (S_c/|C_HT|)          [ REGIME DIAL ]
+        |
+        |   low  E*  -> hillslopes sub-threshold : slope-area theta is informative
+        |   high E*  -> slope saturates at S_c   : use curvature + area only
+        v
+   weight the cues -> locate CHANNEL HEAD (C)   [last; offset where no universal break]
+        |
+        v
+   OUTPUTS:  valley heads (V) | channel heads (C)+offset | colluvial extent | catchments
+```
+
+**Why it isn't circular** ($L_H$ = crest→channel would be, since the channel is the
+unknown): the transport hillslope ends at the **valley head**, not the channel head,
+and V comes from local curvature convergence — so $L_H$=crest→V, then $E^*$, then C
+*last*, with C never feeding back. $S_c$ is the one non-topographic input (assume, or
+calibrate — but calibration via $R^*$ also uses crest→V geometry, not the channel).
+In steep terrain slope *saturates* and carries no domain info, which is exactly why
+**curvature (valley head) + area-steps (tributaries) are universal** and slope is
+weighted down. Status: catchment decomposition (`catchment_decompose.py`,
+`plot_catchments.py`) and the continuum test (`hillslope_continuum.py`) validated at
+both MBR and Feather; the curvature valley-head detector is the next build.
+
 ## The payoff: resolution robustness vs the FIELD heads (`robustness.py`)
 
 `r.fluvial.channelheads method=divides` (divide-defined valleys + chi-z) vs Clubb's
