@@ -22,12 +22,26 @@ XLSX = '/home/awickert/Downloads/Channel_head_coords.xlsx'
 SITES = {
     'mbr':    dict(name='Mid Bailey Run, OH', flt='/tmp/dreich_algorithm/bailey_run_dem.flt', key='Bailey'),
     'indian': dict(name='Indian Creek, OH',   flt='/tmp/dreich_algorithm/indian_creek_dem.flt', key='Indian'),
+    # Feather River, CA: 15 heads in two clusters split at N~4,394,000 (10 S, 5 N)
+    'feather_s': dict(name='Feather River South, CA', flt='/tmp/feather_south/output.tin.tif',
+                      key='Feather', nfilter=('<', 4394000.0)),
+    'feather_n': dict(name='Feather River North, CA', flt='/tmp/feather_north/output.tin.tif',
+                      key='Feather', nfilter=('>', 4394000.0)),
 }
 T_LIST = (2000, 3000, 4000, 5000, 7000, 10000, 15000, 20000, 40000)
 TOLS = (30.0, 50.0)
 
 
 def read_flt(path):
+    """Read a DEM as (z, west, north_top, res, nodata). Accepts an ESRI .flt (+.hdr)
+    or a GeoTIFF (.tif/.tiff, via rasterio) so OpenTopography DEMs ingest directly."""
+    if path.lower().endswith(('.tif', '.tiff')):
+        import rasterio
+        with rasterio.open(path) as src:
+            z = src.read(1).astype(np.float64)
+            b = src.bounds
+            nd = -9999.0 if src.nodata is None else float(src.nodata)
+            return z, b.left, b.top, float(src.res[0]), nd
     h = {}
     for line in open(path[:-4] + '.hdr'):
         p = line.split()
@@ -39,13 +53,19 @@ def read_flt(path):
     return z, float(h['xllcorner']), float(h['yllcorner']) + nr * res, res, nd   # west, north(top)
 
 
-def load_field_heads(site_key):
+def load_field_heads(site_key, nfilter=None):
+    """Field heads (E, N) for a site; ``nfilter=('<'|'>', N)`` splits a site by
+    northing (used to separate the two Feather River clusters)."""
     import openpyxl
     wb = openpyxl.load_workbook(XLSX, data_only=True, read_only=True)
     ws = wb['Sheet1']
     EN = [(float(r[3]), float(r[2])) for r in ws.iter_rows(min_row=3, values_only=True)
           if r[0] and site_key in str(r[0])]
-    return np.array(EN)
+    arr = np.array(EN)
+    if nfilter is not None and len(arr):
+        op, val = nfilter
+        arr = arr[arr[:, 1] < val] if op == '<' else arr[arr[:, 1] > val]
+    return arr
 
 
 def anchor_check_loader():
@@ -66,7 +86,7 @@ def run_site(key, buf=400, hullbuf=50.0):
     cfg = SITES[key]
     z, west, north, res, nd = read_flt(cfg['flt'])
     z = np.where(z == nd, np.nan, z)
-    field = load_field_heads(cfg['key'])
+    field = load_field_heads(cfg['key'], cfg.get('nfilter'))
     nr, nc = z.shape
     cr = ((north - field[:, 1]) / res).astype(int)
     cc = ((field[:, 0] - west) / res).astype(int)
